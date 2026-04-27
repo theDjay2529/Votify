@@ -310,7 +310,12 @@ function renderQueue(songs) {
             <div class="queue-card-title" title="${escapeAttr(song.title)}">${escapeHtml(song.title)}</div>
           </div>
           <button class="vote-btn ${voted ? 'voted' : ''}" data-id="${song.id}" data-ytid="${song.youtube_id}" aria-label="Vote for ${escapeAttr(song.title)}">
-            <span class="vote-arrow">${voted ? '✓' : '▲'}</span>
+            <span class="vote-arrow">
+              ${voted 
+                ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M4 14h4v7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7h4a1.001 1.001 0 0 0 .781-1.625l-8-10c-.381-.475-1.181-.475-1.562 0l-8 10A1.001 1.001 0 0 0 4 14z"/></svg>' 
+                : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h4v7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7h4a1.001 1.001 0 0 0 .781-1.625l-8-10c-.381-.475-1.181-.475-1.562 0l-8 10A1.001 1.001 0 0 0 4 14z"/></svg>'
+              }
+            </span>
             <span class="vote-count">${song.votes}</span>
           </button>
         </div>

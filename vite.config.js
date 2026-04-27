@@ -7,7 +7,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        host: resolve(__dirname, 'host.html'),
+        host: resolve(__dirname, 'host_6969.html'),
         participant: resolve(__dirname, 'participant.html'),
       },
     },

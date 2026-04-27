@@ -58,11 +58,12 @@ The app opens at `http://localhost:3000`. Your **local network IP** (e.g., `http
 | Screen | URL | Purpose |
 |--------|-----|---------|
 | **Landing** | `/` | Choose Host or Participant mode |
-| **Host** | `/host.html` | Projector view — YouTube player + QR code + live queue |
-| **Participant** | `/participant.html` | Mobile view — search songs, add to queue, vote |
+| **Host** | `/host_6969.html` | Projector view — YouTube player + QR code + live queue |
+| **Participant** | `/participant.html` | Mobile view — Search, Add songs, Upvote |
 
-### Host Mode (Projector)
-1. Open `http://localhost:3000/host.html` on the machine connected to the projector
+## 🚀 How to Run
+
+1. Open `http://localhost:3000/host_6969.html` on the machine connected to the projector
 2. The QR code auto-generates pointing to the participant page
 3. Songs auto-play from the queue (highest votes first)
 4. When a song ends, the next highest-voted song plays automatically

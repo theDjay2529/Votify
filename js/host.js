@@ -37,9 +37,9 @@ function showToast(message, type = 'info') {
 }
 
 // ── QR Code Generation ──
-// Set this to your deployed Netlify/Vercel URL so phones can always reach it.
+// Deployed URL is loaded from VITE_DEPLOYED_URL in .env
 // If empty, falls back to current window location (works for localhost on same Wi-Fi).
-const DEPLOYED_URL = 'https://votify-vibeathon.netlify.app';
+const DEPLOYED_URL = import.meta.env.VITE_DEPLOYED_URL || '';
 
 function generateQRCode() {
   const qrContainer = document.getElementById('qr-code');
@@ -239,8 +239,25 @@ async function refreshQueueDisplay() {
           <div class="queue-song-votes">
             <span class="arrow">▲</span> ${song.votes}
           </div>
+          <button class="btn-delete-track" data-id="${song.id}" title="Remove track">✕</button>
         `;
         queueList.appendChild(card);
+      });
+
+      // Attach event listeners for delete buttons
+      document.querySelectorAll('.btn-delete-track').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.getAttribute('data-id');
+          if (confirm('Remove this track from the queue?')) {
+            try {
+              await supabase.from('queue').delete().eq('id', id);
+              refreshQueueDisplay();
+            } catch (err) {
+              console.error('[Votify] Error deleting track:', err);
+              showToast('Failed to remove track', 'error');
+            }
+          }
+        });
       });
     }
   } catch (err) {
@@ -285,8 +302,8 @@ function setupRealtime() {
 }
 
 // ── PIN Gate ──
-// Change this PIN to whatever you want. Only the host needs to know it.
-const HOST_PIN = '696969';
+// PIN is loaded from VITE_HOST_PIN in .env — never hardcoded in source.
+const HOST_PIN = import.meta.env.VITE_HOST_PIN || '00000';
 
 const pinGate = document.getElementById('pin-gate');
 const pinInput = document.getElementById('pin-input');
@@ -323,6 +340,61 @@ pinInput.addEventListener('keydown', (e) => {
   pinError.classList.add('hidden');
 });
 
+// ── Clear Queue ──
+document.getElementById('btn-clear-queue')?.addEventListener('click', async () => {
+  if (confirm('Are you sure you want to completely clear the upcoming queue?')) {
+    try {
+      await supabase.from('queue').delete().eq('played', false);
+      showToast('Queue cleared', 'success');
+      refreshQueueDisplay();
+    } catch (err) {
+      console.error('[Votify] Error clearing queue:', err);
+      showToast('Failed to clear queue', 'error');
+    }
+  }
+});
+
+// ── Visualizer Background ──
+function initVisualizer() {
+  const canvas = document.getElementById('visualizer-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let time = 0;
+  function draw() {
+    requestAnimationFrame(draw);
+    time += 0.05;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const bars = 50;
+    const barWidth = canvas.width / bars;
+    const midY = canvas.height / 2;
+    
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, 'rgba(168, 85, 247, 0.8)');
+    gradient.addColorStop(1, 'rgba(6, 182, 212, 0.8)');
+    
+    ctx.fillStyle = gradient;
+    
+    for (let i = 0; i < bars; i++) {
+      let noise = Math.sin(time + i * 0.2) * Math.cos(time * 0.6 + i * 0.1) * Math.sin(time * 0.3 - i * 0.05);
+      let amplitude = currentSong ? 300 : 50;
+      let height = Math.abs(noise) * amplitude + 20;
+      
+      ctx.fillRect(i * barWidth, midY - height, barWidth - 8, height * 2);
+    }
+  }
+  draw();
+}
+
 // ── Initialize ──
 async function init() {
   console.log('[Votify] Host screen initializing...');
@@ -338,6 +410,9 @@ async function init() {
 
   // Initialize YouTube player (waits for API to be ready)
   initPlayer();
+  
+  // Start visualizer background
+  initVisualizer();
 
   showToast('Host mode active — waiting for songs! 🎧', 'success');
 }

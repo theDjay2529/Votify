@@ -11,6 +11,7 @@
 </head>
 <body>
   <!-- Background -->
+  <canvas id="visualizer-canvas" class="visualizer-bg"></canvas>
   <div class="bg-grid"></div>
   <div class="bg-glow purple"></div>
   <div class="bg-glow cyan"></div>
@@ -34,8 +35,8 @@
           type="password"
           id="pin-input"
           class="pin-input"
-          maxlength="4"
-          placeholder="••••"
+          maxlength="5"
+          placeholder="•••••"
           autocomplete="off"
           inputmode="numeric"
           aria-label="Host PIN"
@@ -151,7 +152,12 @@
     <aside class="host-queue" id="host-queue">
       <div class="queue-header">
         <h2 class="queue-title">⏭️ Up Next</h2>
-        <span class="queue-count" id="queue-count">0</span>
+        <div class="queue-actions">
+          <span class="queue-count" id="queue-count">0</span>
+          <button id="btn-clear-queue" class="btn-icon" title="Clear Queue" aria-label="Clear Queue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+          </button>
+        </div>
       </div>
       <div class="queue-list" id="queue-list">
         <!-- Songs will be rendered here -->

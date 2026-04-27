@@ -43,3 +43,7 @@ CREATE POLICY "Allow public update"
   ON queue FOR UPDATE
   USING (true)
   WITH CHECK (true);
+
+CREATE POLICY "Allow public delete"
+  ON queue FOR DELETE
+  USING (true);

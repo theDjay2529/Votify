@@ -3,6 +3,16 @@
    ============================================================ */
 
 /* ── Layout ── */
+.visualizer-bg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  filter: blur(8px) opacity(0.3);
+  pointer-events: none;
+}
+
 .host-layout {
   position: relative;
   z-index: 1;
@@ -233,11 +243,18 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-lg);
+  min-height: 40px; /* match sidebar brand and now playing header height */
 }
 
 .queue-title {
   font-size: 1.1rem;
   font-weight: 700;
+}
+
+.queue-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .queue-count {
@@ -252,6 +269,26 @@
   border-radius: var(--radius-full);
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-icon:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .queue-list {
@@ -355,6 +392,32 @@
 .queue-song-votes .arrow {
   font-size: 0.7rem;
   opacity: 0.7;
+}
+
+.btn-delete-track {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+  opacity: 0.5;
+}
+
+.btn-delete-track:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+  opacity: 1;
+}
+
+.queue-song:hover .btn-delete-track {
+  opacity: 1;
 }
 
 /* ── Responsive ── */

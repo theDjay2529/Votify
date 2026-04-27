@@ -1,14 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
 // ============================================================
-//  🔧 SUPABASE CONFIGURATION — REPLACE THESE PLACEHOLDERS
+//  🔧 SUPABASE CONFIGURATION
 // ============================================================
-// 1. Go to https://supabase.com → Create a new project
-// 2. Go to Project Settings → API
-// 3. Copy the "Project URL" and "anon / public" key below
+//  Credentials are loaded from environment variables (.env file).
+//  See .env.example for the required variables.
 // ============================================================
 
-const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error(
+    '[Votify] Missing Supabase credentials. Copy .env.example to .env and fill in your values.'
+  );
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
