@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Votify — Crowd-Controlled Music Queue</title>
+  <meta name="description" content="Real-time, crowd-controlled YouTube music queue for live events. Scan, search, vote — the crowd picks the playlist." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>" />
+  <link rel="stylesheet" href="/css/global.css" />
+  <style>
+    .landing {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: var(--space-xl);
+      text-align: center;
+    }
+
+    .landing-logo {
+      font-size: 4rem;
+      margin-bottom: var(--space-md);
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .landing-title {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: var(--space-md);
+    }
+
+    .landing-subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin-bottom: var(--space-3xl);
+      line-height: 1.7;
+    }
+
+    .landing-actions {
+      display: flex;
+      gap: var(--space-lg);
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: var(--space-3xl);
+    }
+
+    .landing-actions .btn-primary,
+    .landing-actions .btn-secondary {
+      min-width: 220px;
+      padding: var(--space-lg) var(--space-2xl);
+      font-size: 1.1rem;
+    }
+
+    .landing-features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-lg);
+      max-width: 700px;
+      width: 100%;
+      animation: fade-in-up 0.8s var(--ease-out) 0.3s both;
+    }
+
+    .feature-card {
+      padding: var(--space-lg);
+      text-align: center;
+    }
+
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: var(--space-sm);
+    }
+
+    .feature-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: var(--space-xs);
+    }
+
+    .feature-desc {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .landing-footer {
+      position: fixed;
+      bottom: var(--space-lg);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Animated orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: 0;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #a855f7;
+      top: 10%;
+      left: 15%;
+      animation-delay: 0s;
+    }
+
+    .orb-2 {
+      width: 350px;
+      height: 350px;
+      background: #06b6d4;
+      bottom: 10%;
+      right: 10%;
+      animation-delay: -2s;
+    }
+
+    .orb-3 {
+      width: 250px;
+      height: 250px;
+      background: #ec4899;
+      top: 50%;
+      right: 30%;
+      animation-delay: -4s;
+    }
+  </style>
+</head>
+<body>
+  <!-- Background effects -->
+  <div class="bg-grid"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <main class="landing">
+    <div class="landing-logo">🎧</div>
+
+    <h1 class="landing-title">
+      <span class="gradient-text">Votify</span>
+    </h1>
+
+    <p class="landing-subtitle">
+      The crowd picks the playlist. Scan the QR code, search for songs, and vote your favorites to the top — all in real time.
+    </p>
+
+    <div class="landing-actions">
+      <a href="/participant.html" class="btn-primary" id="btn-join">
+        🎵 Join & Vote
+      </a>
+    </div>
+
+    <div class="landing-features">
+      <div class="feature-card glass-card">
+        <div class="feature-icon">📱</div>
+        <div class="feature-title">Scan & Join</div>
+        <div class="feature-desc">QR code opens instantly — no app download needed</div>
+      </div>
+      <div class="feature-card glass-card">
+        <div class="feature-icon">🔍</div>
+        <div class="feature-title">Search & Add</div>
+        <div class="feature-desc">Find any song on YouTube and add it to the queue</div>
+      </div>
+      <div class="feature-card glass-card">
+        <div class="feature-icon">🗳️</div>
+        <div class="feature-title">Vote & Hype</div>
+        <div class="feature-desc">Upvote your favorites — the most hyped song plays next</div>
+      </div>
+    </div>
+  </main>
+
+  <div class="landing-footer">
+    Built for NEXORA Vibe Coding 🎶
+  </div>
+</body>
+</html>

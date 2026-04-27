@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Votify — Host Screen</title>
+  <meta name="description" content="Votify host display for projectors — shows now playing, up next, and QR code for attendees." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>" />
+  <link rel="stylesheet" href="/css/global.css" />
+  <link rel="stylesheet" href="/css/host.css" />
+</head>
+<body>
+  <!-- Background -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow purple"></div>
+  <div class="bg-glow cyan"></div>
+
+  <!-- Reconnecting banner -->
+  <div class="reconnect-banner" id="reconnect-banner">
+    ⚠️ Reconnecting to server...
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- PIN Gate Overlay -->
+  <div class="pin-gate" id="pin-gate">
+    <div class="pin-gate-card glass-card">
+      <div class="pin-gate-icon">🔒</div>
+      <h2 class="pin-gate-title gradient-text">Host Access</h2>
+      <p class="pin-gate-desc">Enter the host PIN to continue</p>
+      <div class="pin-input-wrapper">
+        <input
+          type="password"
+          id="pin-input"
+          class="pin-input"
+          maxlength="4"
+          placeholder="••••"
+          autocomplete="off"
+          inputmode="numeric"
+          aria-label="Host PIN"
+        />
+      </div>
+      <button class="btn-primary pin-submit" id="pin-submit">Unlock</button>
+      <p class="pin-error hidden" id="pin-error">Incorrect PIN. Try again.</p>
+    </div>
+  </div>
+
+  <style>
+    .pin-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-primary);
+    }
+    .pin-gate.hidden { display: none; }
+    .pin-gate-card {
+      padding: var(--space-2xl) var(--space-3xl);
+      text-align: center;
+      max-width: 380px;
+      width: 90%;
+      animation: fade-in-up 0.5s var(--ease-out);
+    }
+    .pin-gate-icon { font-size: 3rem; margin-bottom: var(--space-md); }
+    .pin-gate-title { font-size: 1.8rem; font-weight: 800; margin-bottom: var(--space-sm); }
+    .pin-gate-desc { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: var(--space-xl); }
+    .pin-input-wrapper { margin-bottom: var(--space-lg); }
+    .pin-input {
+      width: 160px;
+      padding: var(--space-md);
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 0.5em;
+      background: var(--bg-glass);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color var(--duration-normal) var(--ease-out);
+    }
+    .pin-input:focus { border-color: var(--accent-primary); box-shadow: var(--shadow-glow-purple); }
+    .pin-input.error { border-color: #ef4444; animation: shake 0.4s ease-in-out; }
+    .pin-submit { width: 100%; margin-top: var(--space-sm); }
+    .pin-error { color: #f87171; font-size: 0.8rem; margin-top: var(--space-md); }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+  </style>
+
+  <!-- Main layout -->
+  <div class="host-layout" id="host-layout">
+
+    <!-- Left sidebar: QR + branding -->
+    <aside class="host-sidebar" id="host-sidebar">
+      <div class="sidebar-brand">
+        <span class="sidebar-logo">🎧</span>
+        <h1 class="sidebar-title gradient-text">Votify</h1>
+      </div>
+
+      <div class="qr-section glass-card" id="qr-section">
+        <div class="qr-label">Scan to Join</div>
+        <div class="qr-code" id="qr-code"></div>
+        <div class="qr-url" id="qr-url"></div>
+      </div>
+
+      <div class="stats-section">
+        <div class="stat-item glass-card">
+          <div class="stat-value" id="stat-queue">0</div>
+          <div class="stat-label">In Queue</div>
+        </div>
+        <div class="stat-item glass-card">
+          <div class="stat-value" id="stat-played">0</div>
+          <div class="stat-label">Played</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center: Player -->
+    <main class="host-main">
+      <!-- Now Playing -->
+      <div class="now-playing-section" id="now-playing-section">
+        <div class="now-playing-header">
+          <div class="now-playing-badge">
+            <span class="pulse-dot"></span>
+            NOW PLAYING
+          </div>
+        </div>
+        <div class="player-container" id="player-container">
+          <div id="yt-player"></div>
+        </div>
+        <div class="now-playing-info" id="now-playing-info">
+          <h2 class="now-playing-title" id="now-playing-title">Waiting for songs...</h2>
+        </div>
+      </div>
+
+      <!-- Idle state -->
+      <div class="idle-state" id="idle-state">
+        <div class="idle-icon">🎵</div>
+        <h2 class="idle-title">Be the first to add a song!</h2>
+        <p class="idle-desc">Scan the QR code on the left to search and add songs to the queue</p>
+      </div>
+    </main>
+
+    <!-- Right sidebar: Up Next -->
+    <aside class="host-queue" id="host-queue">
+      <div class="queue-header">
+        <h2 class="queue-title">⏭️ Up Next</h2>
+        <span class="queue-count" id="queue-count">0</span>
+      </div>
+      <div class="queue-list" id="queue-list">
+        <!-- Songs will be rendered here -->
+        <div class="queue-empty" id="queue-empty">
+          <p>No songs in queue yet</p>
+          <p class="queue-empty-hint">Waiting for participants to add songs...</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- QR Code Library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <!-- YouTube IFrame API — bridge to handle the race condition with ES modules -->
+  <script>
+    // The YouTube API calls onYouTubeIframeAPIReady synchronously.
+    // Since host.js is a module (loads deferred), we bridge with a promise.
+    window.__ytReady = new Promise(function (resolve) {
+      window.onYouTubeIframeAPIReady = resolve;
+    });
+  </script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <!-- App -->
+  <script type="module" src="/js/host.js"></script>
+</body>
+</html>

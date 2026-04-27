@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Votify — Vote for Songs</title>
+  <meta name="description" content="Search for songs and vote them up the queue — the crowd decides what plays next!" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>" />
+  <link rel="stylesheet" href="/css/global.css" />
+  <link rel="stylesheet" href="/css/participant.css" />
+</head>
+<body>
+  <!-- Background -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow purple"></div>
+  <div class="bg-glow cyan"></div>
+
+  <!-- Reconnecting banner -->
+  <div class="reconnect-banner" id="reconnect-banner">
+    ⚠️ Reconnecting to server...
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Header -->
+  <header class="p-header">
+    <a href="/" class="p-header-brand">
+      <span class="p-header-logo">🎧</span>
+      <span class="p-header-title gradient-text">Votify</span>
+    </a>
+  </header>
+
+  <!-- Main content -->
+  <main class="p-main">
+    <!-- Search Section -->
+    <section class="search-section" id="search-section">
+      <div class="search-wrapper glass-card">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="Search for a song..."
+          autocomplete="off"
+          aria-label="Search for songs"
+        />
+        <button class="search-clear hidden" id="search-clear" aria-label="Clear search">✕</button>
+        <div class="search-spinner hidden" id="search-spinner">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Search Results -->
+    <section class="results-section hidden" id="results-section">
+      <h2 class="section-title">Search Results</h2>
+      <div class="results-list" id="results-list"></div>
+    </section>
+
+    <!-- Now Playing (small indicator) -->
+    <section class="now-playing-mini glass-card" id="now-playing-mini">
+      <div class="npm-badge">
+        <span class="pulse-dot-sm"></span>
+        NOW PLAYING
+      </div>
+      <div class="npm-title" id="npm-title">Waiting for songs...</div>
+    </section>
+
+    <!-- Queue Section -->
+    <section class="queue-section" id="queue-section">
+      <div class="section-header">
+        <h2 class="section-title">🗳️ Queue</h2>
+        <span class="queue-badge" id="queue-badge">0</span>
+      </div>
+      <div class="queue-list" id="queue-list">
+        <!-- Queue items render here -->
+      </div>
+      <div class="queue-empty" id="queue-empty">
+        <div class="queue-empty-icon">🎵</div>
+        <p>No songs in the queue yet</p>
+        <p class="queue-empty-hint">Search and add the first song!</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- App -->
+  <script type="module" src="/js/participant.js"></script>
+</body>
+</html>
