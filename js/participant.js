@@ -343,37 +343,95 @@ async function refreshQueueDisplay() {
 }
 
 function renderQueue(songs) {
-  queueList.innerHTML = songs
-    .map((song, i) => {
-      const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-      const voted = hasVoted(song.youtube_id);
-      return `
-        <div class="queue-card" data-id="${song.id}" data-ytid="${song.youtube_id}">
-          <span class="queue-card-rank ${rankClass}">${i + 2}</span>
-          <img class="queue-card-thumb" src="${song.thumbnail_url || ''}" alt="" loading="lazy" onerror="this.style.display='none'" />
-          <div class="queue-card-info">
-            <div class="queue-card-title" title="${escapeAttr(song.title)}">${escapeHtml(song.title)}</div>
-          </div>
-          <button class="vote-btn ${voted ? 'voted' : ''}" data-id="${song.id}" data-ytid="${song.youtube_id}" aria-label="Vote for ${escapeAttr(song.title)}">
-            <span class="vote-arrow">
-              ${voted 
-                ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M4 14h4v7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7h4a1.001 1.001 0 0 0 .781-1.625l-8-10c-.381-.475-1.181-.475-1.562 0l-8 10A1.001 1.001 0 0 0 4 14z"/></svg>' 
-                : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h4v7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7h4a1.001 1.001 0 0 0 .781-1.625l-8-10c-.381-.475-1.181-.475-1.562 0l-8 10A1.001 1.001 0 0 0 4 14z"/></svg>'
-              }
-            </span>
-            <span class="vote-count">${song.votes}</span>
-          </button>
-        </div>
-      `;
-    })
-    .join('');
+  // 1. Record current positions (First)
+  const oldRects = new Map();
+  Array.from(queueList.children).forEach(child => {
+    if (child.dataset.id) {
+      oldRects.set(child.dataset.id, child.getBoundingClientRect());
+    }
+  });
 
-  // Attach vote listeners
-  queueList.querySelectorAll('.vote-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleVote(btn.dataset.id, btn.dataset.ytid);
-    });
+  // 2. Remove deleted elements
+  const newIds = new Set(songs.map(s => s.id));
+  Array.from(queueList.children).forEach(child => {
+    if (child.dataset.id && !newIds.has(child.dataset.id)) {
+      child.remove();
+    }
+  });
+
+  // 3. Update existing or Add new (Last)
+  songs.forEach((song, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const voted = hasVoted(song.youtube_id);
+    let card = queueList.querySelector(`.queue-card[data-id="${song.id}"]`);
+    
+    const svgIcon = voted
+      ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M4 14h4v7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7h4a1.001 1.001 0 0 0 .781-1.625l-8-10c-.381-.475-1.181-.475-1.562 0l-8 10A1.001 1.001 0 0 0 4 14z"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h4v7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7h4a1.001 1.001 0 0 0 .781-1.625l-8-10c-.381-.475-1.181-.475-1.562 0l-8 10A1.001 1.001 0 0 0 4 14z"/></svg>';
+
+    if (!card) {
+      card = document.createElement('div');
+      card.className = 'queue-card';
+      card.dataset.id = song.id;
+      card.dataset.ytid = song.youtube_id;
+      
+      card.innerHTML = `
+        <span class="queue-card-rank ${rankClass}">${i + 2}</span>
+        <img class="queue-card-thumb" src="${song.thumbnail_url || ''}" alt="" loading="lazy" onerror="this.style.display='none'" />
+        <div class="queue-card-info">
+          <div class="queue-card-title" title="${escapeAttr(song.title)}">${escapeHtml(song.title)}</div>
+        </div>
+        <button class="vote-btn ${voted ? 'voted' : ''}" data-id="${song.id}" data-ytid="${song.youtube_id}" aria-label="Vote for ${escapeAttr(song.title)}">
+          <span class="vote-arrow">${svgIcon}</span>
+          <span class="vote-count">${song.votes}</span>
+        </button>
+      `;
+      
+      // Attach vote listener
+      const btn = card.querySelector('.vote-btn');
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleVote(btn.dataset.id, btn.dataset.ytid);
+      });
+      
+      queueList.appendChild(card);
+    } else {
+      // Update contents
+      card.querySelector('.queue-card-rank').className = `queue-card-rank ${rankClass}`;
+      card.querySelector('.queue-card-rank').textContent = i + 2;
+      card.querySelector('.vote-count').textContent = song.votes;
+      
+      const btn = card.querySelector('.vote-btn');
+      if (voted) btn.classList.add('voted');
+      else btn.classList.remove('voted');
+      btn.querySelector('.vote-arrow').innerHTML = svgIcon;
+      
+      // Re-append to DOM to fix ordering
+      queueList.appendChild(card);
+    }
+  });
+
+  // 4. Invert & Play (FLIP)
+  Array.from(queueList.children).forEach(child => {
+    const id = child.dataset.id;
+    if (!id) return;
+    const oldRect = oldRects.get(id);
+    const newRect = child.getBoundingClientRect();
+    
+    if (oldRect) {
+      const deltaY = oldRect.top - newRect.top;
+      if (deltaY !== 0) {
+        // Invert
+        child.style.transform = `translateY(${deltaY}px)`;
+        child.style.transition = 'none';
+        
+        // Play
+        requestAnimationFrame(() => {
+          child.style.transform = '';
+          child.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
+        });
+      }
+    }
   });
 }
 

@@ -210,55 +210,99 @@ async function refreshQueueDisplay() {
       ? queue.filter((s) => s.id !== currentSong.id)
       : queue;
 
-    // Render queue
+    // Render queue with FLIP animation
     if (upNext.length === 0) {
       queueEmpty.classList.remove('hidden');
-      queueList.querySelectorAll('.queue-song').forEach((el) => el.remove());
+      Array.from(queueList.children).forEach(c => {
+        if (c.id !== 'queue-empty') c.remove();
+      });
     } else {
       queueEmpty.classList.add('hidden');
 
-      // Clear existing songs
-      queueList.querySelectorAll('.queue-song').forEach((el) => el.remove());
-
-      upNext.forEach((song, index) => {
-        const rankClass = index < 3 ? `top-${index + 1}` : '';
-        const card = document.createElement('div');
-        card.className = 'queue-song';
-        card.style.animationDelay = `${index * 0.05}s`;
-        card.innerHTML = `
-          <span class="queue-song-rank ${rankClass}">${index + 1}</span>
-          <img
-            class="queue-song-thumb"
-            src="${song.thumbnail_url || ''}"
-            alt=""
-            onerror="this.style.display='none'"
-          />
-          <div class="queue-song-info">
-            <div class="queue-song-title" title="${song.title}">${song.title}</div>
-          </div>
-          <div class="queue-song-votes">
-            <span class="arrow">▲</span> ${song.votes}
-          </div>
-          <button class="btn-delete-track" data-id="${song.id}" title="Remove track">✕</button>
-        `;
-        queueList.appendChild(card);
+      // 1. Record current positions (First)
+      const oldRects = new Map();
+      Array.from(queueList.children).forEach(child => {
+        if (child.dataset.id) {
+          oldRects.set(child.dataset.id, child.getBoundingClientRect());
+        }
       });
 
-      // Attach event listeners for delete buttons
-      document.querySelectorAll('.btn-delete-track').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const id = e.target.getAttribute('data-id');
-          if (confirm('Remove this track from the queue?')) {
-            try {
-              // Instead of delete() which requires RLS DELETE policy, we mark it as played
-              await supabase.from('queue').update({ played: true }).eq('id', id);
-              refreshQueueDisplay();
-            } catch (err) {
-              console.error('[Votify] Error deleting track:', err);
-              showToast('Failed to remove track', 'error');
+      // 2. Remove deleted elements
+      const newIds = new Set(upNext.map(s => s.id));
+      Array.from(queueList.children).forEach(child => {
+        if (child.dataset.id && !newIds.has(child.dataset.id)) {
+          child.remove();
+        }
+      });
+
+      // 3. Update existing or Add new (Last)
+      upNext.forEach((song, index) => {
+        const rankClass = index < 3 ? `top-${index + 1}` : '';
+        let card = queueList.querySelector(`.queue-song[data-id="${song.id}"]`);
+        
+        if (!card) {
+          card = document.createElement('div');
+          card.className = 'queue-song';
+          card.dataset.id = song.id;
+          
+          card.innerHTML = `
+            <span class="queue-song-rank ${rankClass}">${index + 1}</span>
+            <img class="queue-song-thumb" src="${song.thumbnail_url || ''}" alt="" onerror="this.style.display='none'" />
+            <div class="queue-song-info">
+              <div class="queue-song-title" title="${song.title}">${song.title}</div>
+            </div>
+            <div class="queue-song-votes">
+              <span class="arrow">▲</span> <span class="vote-count">${song.votes}</span>
+            </div>
+            <button class="btn-delete-track" data-id="${song.id}" title="Remove track">✕</button>
+          `;
+          
+          // Attach delete listener
+          const delBtn = card.querySelector('.btn-delete-track');
+          delBtn.addEventListener('click', async (e) => {
+            if (confirm('Remove this track from the queue?')) {
+              try {
+                await supabase.from('queue').update({ played: true }).eq('id', song.id);
+                refreshQueueDisplay();
+              } catch (err) {
+                console.error('[Votify] Error deleting track:', err);
+              }
             }
+          });
+          
+          queueList.appendChild(card);
+        } else {
+          // Update contents
+          card.querySelector('.queue-song-rank').className = `queue-song-rank ${rankClass}`;
+          card.querySelector('.queue-song-rank').textContent = index + 1;
+          card.querySelector('.vote-count').textContent = song.votes;
+          
+          // Re-append to DOM to fix ordering
+          queueList.appendChild(card);
+        }
+      });
+
+      // 4. Invert & Play (FLIP)
+      Array.from(queueList.children).forEach(child => {
+        const id = child.dataset.id;
+        if (!id) return;
+        const oldRect = oldRects.get(id);
+        const newRect = child.getBoundingClientRect();
+        
+        if (oldRect) {
+          const deltaY = oldRect.top - newRect.top;
+          if (deltaY !== 0) {
+            // Invert
+            child.style.transform = `translateY(${deltaY}px)`;
+            child.style.transition = 'none';
+            
+            // Play
+            requestAnimationFrame(() => {
+              child.style.transform = '';
+              child.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            });
           }
-        });
+        }
       });
     }
   } catch (err) {

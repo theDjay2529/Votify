@@ -374,12 +374,19 @@
   background: rgba(34, 197, 94, 0.15);
   border-color: rgba(34, 197, 94, 0.3);
   color: #22c55e;
-  cursor: default;
+  cursor: pointer;
 }
 
 .vote-btn.voted:hover {
-  transform: none;
-  background: rgba(34, 197, 94, 0.15);
+  transform: scale(0.95);
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.vote-btn.voted:hover .vote-arrow svg {
+  /* Change the arrow or icon appearance if necessary, or just rely on color */
+  fill: none;
 }
 
 .vote-arrow {
