@@ -47,6 +47,15 @@ function addVotedId(youtubeId) {
   }
 }
 
+function removeVotedId(youtubeId) {
+  const voted = getVotedIds();
+  const index = voted.indexOf(youtubeId);
+  if (index > -1) {
+    voted.splice(index, 1);
+    localStorage.setItem('votify_voted_ids', JSON.stringify(voted));
+  }
+}
+
 function hasVoted(youtubeId) {
   return getVotedIds().includes(youtubeId);
 }
@@ -238,20 +247,56 @@ async function handleAddSong(card) {
 
 // ── Vote Handler (from queue) ──
 async function handleVote(songId, youtubeId) {
-  if (hasVoted(youtubeId)) {
-    showToast("You already hyped this track! 🔥", 'info');
-    return;
-  }
+  const isVoted = hasVoted(youtubeId);
 
   try {
-    const { error } = await supabase.rpc('increment_vote', { row_id: songId });
-    if (error) throw error;
+    if (isVoted) {
+      // Unvote: fetch current votes and decrement
+      const { data, error: fetchErr } = await supabase
+        .from('queue')
+        .select('votes')
+        .eq('id', songId)
+        .single();
+        
+      if (fetchErr) throw fetchErr;
+      
+      const newVotes = Math.max(0, data.votes - 1);
+      
+      const { error: updateErr } = await supabase
+        .from('queue')
+        .update({ votes: newVotes })
+        .eq('id', songId);
+        
+      if (updateErr) throw updateErr;
+      
+      removeVotedId(youtubeId);
+      showToast('Vote removed 💔', 'info');
+    } else {
+      // Upvote
+      const { error } = await supabase.rpc('increment_vote', { row_id: songId });
+      if (error) throw error;
 
-    addVotedId(youtubeId);
-    showToast('Vote added! 🗳️🔥', 'success');
+      addVotedId(youtubeId);
+      showToast('Vote added! 🗳️🔥', 'success');
+    }
+    
+    // Optimistic UI update
+    const btn = document.querySelector(`.vote-btn[data-id="${songId}"]`);
+    if (btn) {
+      if (isVoted) {
+        btn.classList.remove('voted');
+        btn.querySelector('.vote-arrow').innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h4v7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7h4a1.001 1.001 0 0 0 .781-1.625l-8-10c-.381-.475-1.181-.475-1.562 0l-8 10A1.001 1.001 0 0 0 4 14z"/></svg>';
+        btn.querySelector('.vote-count').textContent = Math.max(0, parseInt(btn.querySelector('.vote-count').textContent) - 1);
+      } else {
+        btn.classList.add('voted');
+        btn.querySelector('.vote-arrow').innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M4 14h4v7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7h4a1.001 1.001 0 0 0 .781-1.625l-8-10c-.381-.475-1.181-.475-1.562 0l-8 10A1.001 1.001 0 0 0 4 14z"/></svg>';
+        btn.querySelector('.vote-count').textContent = parseInt(btn.querySelector('.vote-count').textContent) + 1;
+      }
+    }
+
   } catch (err) {
     console.error('[Votify] Vote error:', err);
-    showToast('Failed to vote — try again', 'error');
+    showToast('Failed to update vote — try again', 'error');
   }
 }
 

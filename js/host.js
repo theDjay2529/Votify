@@ -250,7 +250,8 @@ async function refreshQueueDisplay() {
           const id = e.target.getAttribute('data-id');
           if (confirm('Remove this track from the queue?')) {
             try {
-              await supabase.from('queue').delete().eq('id', id);
+              // Instead of delete() which requires RLS DELETE policy, we mark it as played
+              await supabase.from('queue').update({ played: true }).eq('id', id);
               refreshQueueDisplay();
             } catch (err) {
               console.error('[Votify] Error deleting track:', err);
@@ -344,13 +345,21 @@ pinInput.addEventListener('keydown', (e) => {
 document.getElementById('btn-clear-queue')?.addEventListener('click', async () => {
   if (confirm('Are you sure you want to completely clear the upcoming queue?')) {
     try {
-      await supabase.from('queue').delete().eq('played', false);
+      await supabase.from('queue').update({ played: true }).eq('played', false);
       showToast('Queue cleared', 'success');
       refreshQueueDisplay();
     } catch (err) {
       console.error('[Votify] Error clearing queue:', err);
       showToast('Failed to clear queue', 'error');
     }
+  }
+});
+
+// ── Skip Track ──
+document.getElementById('btn-skip-track')?.addEventListener('click', () => {
+  if (currentSong) {
+    showToast('Skipping track...', 'info');
+    markCurrentAsPlayed();
   }
 });
 
@@ -370,7 +379,7 @@ function initVisualizer() {
   let time = 0;
   function draw() {
     requestAnimationFrame(draw);
-    time += 0.05;
+    time += 0.01; // Slower animation
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     

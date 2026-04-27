@@ -9,7 +9,7 @@
   width: 100vw;
   height: 100vh;
   z-index: -2;
-  filter: blur(8px) opacity(0.3);
+  filter: blur(24px) opacity(0.3);
   pointer-events: none;
 }
 
@@ -182,7 +182,11 @@
 }
 
 .now-playing-info {
-  padding: var(--space-sm) 0;
+  padding: var(--space-md) var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .now-playing-title {
@@ -192,6 +196,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
 /* Idle state */
