@@ -39,7 +39,7 @@ function showToast(message, type = 'info') {
 // ── QR Code Generation ──
 // Set this to your deployed Netlify/Vercel URL so phones can always reach it.
 // If empty, falls back to current window location (works for localhost on same Wi-Fi).
-const DEPLOYED_URL = 'https://velvety-syrniki-5b48b3.netlify.app';
+const DEPLOYED_URL = 'https://votify-vibeathon.netlify.app';
 
 function generateQRCode() {
   const qrContainer = document.getElementById('qr-code');
