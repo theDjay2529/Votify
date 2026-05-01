@@ -204,37 +204,33 @@ async function handleAddSong(card) {
     if (fetchError) throw fetchError;
 
     if (existing && existing.length > 0) {
+      const existingId = existing[0].id;
       // Song exists — upvote it
-      if (hasVoted(youtubeId)) {
+      if (hasVoted(existingId)) {
         showToast("You already hyped this track! 🔥", 'info');
         card.classList.remove('adding');
         return;
       }
 
       const { error: rpcError } = await supabase.rpc('increment_vote', {
-        row_id: existing[0].id,
+        row_id: existingId,
       });
       if (rpcError) throw rpcError;
 
-      addVotedId(youtubeId);
+      addVotedId(existingId);
       showToast('Vote added! 🗳️🔥', 'success');
     } else {
       // New song — insert
-      // Check if already voted (for re-added songs)
-      if (hasVoted(youtubeId)) {
-        // Still insert but don't block — they may have voted on a previous round
-      }
-
-      const { error: insertError } = await supabase.from('queue').insert({
+      const { data, error: insertError } = await supabase.from('queue').insert({
         youtube_id: youtubeId,
         title: title,
         thumbnail_url: thumbnailUrl,
         votes: 1,
-      });
+      }).select();
 
       if (insertError) throw insertError;
 
-      addVotedId(youtubeId);
+      addVotedId(data[0].id);
       showToast('Song added to queue! 🎶', 'success');
     }
   } catch (err) {
@@ -246,8 +242,8 @@ async function handleAddSong(card) {
 }
 
 // ── Vote Handler (from queue) ──
-async function handleVote(songId, youtubeId) {
-  const isVoted = hasVoted(youtubeId);
+async function handleVote(songId) {
+  const isVoted = hasVoted(songId);
 
   try {
     if (isVoted) {
@@ -269,14 +265,14 @@ async function handleVote(songId, youtubeId) {
         
       if (updateErr) throw updateErr;
       
-      removeVotedId(youtubeId);
+      removeVotedId(songId);
       showToast('Vote removed 💔', 'info');
     } else {
       // Upvote
       const { error } = await supabase.rpc('increment_vote', { row_id: songId });
       if (error) throw error;
 
-      addVotedId(youtubeId);
+      addVotedId(songId);
       showToast('Vote added! 🗳️🔥', 'success');
     }
     
@@ -301,34 +297,51 @@ async function handleVote(songId, youtubeId) {
 }
 
 // ── Queue Display ──
+let remoteCurrentSong = null;
+
 async function refreshQueueDisplay() {
   try {
     const { data, error } = await supabase
       .from('queue')
       .select('*')
       .eq('played', false)
-      .order('votes', { ascending: false });
+      .order('votes', { ascending: false })
+      .order('created_at', { ascending: true }); // Match host sort
 
     if (error) throw error;
 
     const songs = data || [];
     queueBadge.textContent = songs.length;
 
-    // Update now playing indicator
-    if (songs.length > 0) {
-      // The top song is likely playing on host
-      nowPlayingTitle.textContent = songs[0].title;
+    // Determine playing song and up next
+    let playingSong = null;
+    let upNext = [];
+
+    if (remoteCurrentSong) {
+      // Host told us exactly what is playing
+      playingSong = remoteCurrentSong;
+      upNext = songs.filter(s => s.id !== remoteCurrentSong.id);
+    } else {
+      // Fallback if host is offline or hasn't synced yet
+      if (songs.length > 0) {
+        playingSong = songs[0];
+        upNext = songs.slice(1);
+      }
+    }
+
+    if (playingSong) {
+      nowPlayingTitle.textContent = playingSong.title;
     } else {
       nowPlayingTitle.textContent = 'Waiting for songs...';
     }
 
-    // Render queue (skip #1 since it's "now playing")
-    const upNext = songs.slice(1);
-
-    if (upNext.length === 0 && songs.length <= 1) {
+    // Render queue
+    if (upNext.length === 0 && songs.length <= (playingSong ? 1 : 0)) {
       queueEmpty.classList.remove('hidden');
-      queueList.innerHTML = '';
-      if (songs.length === 1) {
+      Array.from(queueList.children).forEach(c => {
+        if (c.id !== 'queue-empty') c.remove();
+      });
+      if (songs.length === 1 && playingSong) {
         queueEmpty.querySelector('p').textContent = 'This is the only song — add more!';
       } else {
         queueEmpty.querySelector('p').textContent = 'No songs in the queue yet';
@@ -362,7 +375,7 @@ function renderQueue(songs) {
   // 3. Update existing or Add new (Last)
   songs.forEach((song, i) => {
     const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const voted = hasVoted(song.youtube_id);
+    const voted = hasVoted(song.id);
     let card = queueList.querySelector(`.queue-card[data-id="${song.id}"]`);
     
     const svgIcon = voted
@@ -373,15 +386,14 @@ function renderQueue(songs) {
       card = document.createElement('div');
       card.className = 'queue-card';
       card.dataset.id = song.id;
-      card.dataset.ytid = song.youtube_id;
       
       card.innerHTML = `
-        <span class="queue-card-rank ${rankClass}">${i + 2}</span>
+        <span class="queue-card-rank ${rankClass}">${i + 1}</span>
         <img class="queue-card-thumb" src="${song.thumbnail_url || ''}" alt="" loading="lazy" onerror="this.style.display='none'" />
         <div class="queue-card-info">
           <div class="queue-card-title" title="${escapeAttr(song.title)}">${escapeHtml(song.title)}</div>
         </div>
-        <button class="vote-btn ${voted ? 'voted' : ''}" data-id="${song.id}" data-ytid="${song.youtube_id}" aria-label="Vote for ${escapeAttr(song.title)}">
+        <button class="vote-btn ${voted ? 'voted' : ''}" data-id="${song.id}" aria-label="Vote for ${escapeAttr(song.title)}">
           <span class="vote-arrow">${svgIcon}</span>
           <span class="vote-count">${song.votes}</span>
         </button>
@@ -391,14 +403,14 @@ function renderQueue(songs) {
       const btn = card.querySelector('.vote-btn');
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        handleVote(btn.dataset.id, btn.dataset.ytid);
+        handleVote(btn.dataset.id);
       });
       
       queueList.appendChild(card);
     } else {
       // Update contents
       card.querySelector('.queue-card-rank').className = `queue-card-rank ${rankClass}`;
-      card.querySelector('.queue-card-rank').textContent = i + 2;
+      card.querySelector('.queue-card-rank').textContent = i + 1;
       card.querySelector('.vote-count').textContent = song.votes;
       
       const btn = card.querySelector('.vote-btn');
@@ -437,8 +449,9 @@ function renderQueue(songs) {
 
 // ── Supabase Realtime ──
 function setupRealtime() {
-  const channel = supabase
-    .channel('participant-queue-updates')
+  const channel = supabase.channel('votify-sync');
+
+  channel
     .on(
       'postgres_changes',
       {
@@ -451,6 +464,22 @@ function setupRealtime() {
         refreshQueueDisplay();
       }
     )
+    .on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      let foundHost = false;
+      for (const id in state) {
+        for (const presence of state[id]) {
+          if (presence.isHost) {
+            remoteCurrentSong = presence.currentSong;
+            foundHost = true;
+            break;
+          }
+        }
+        if (foundHost) break;
+      }
+      if (!foundHost) remoteCurrentSong = null;
+      refreshQueueDisplay();
+    })
     .subscribe((status) => {
       console.log('[Votify] Realtime status:', status);
       if (status === 'SUBSCRIBED') {

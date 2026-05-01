@@ -172,6 +172,18 @@
     </aside>
   </div>
 
+  <!-- Custom Confirmation Modal -->
+  <div id="confirm-modal" class="modal-overlay">
+    <div class="modal-content glass-card">
+      <h3 id="modal-title" class="modal-title">Confirm Action</h3>
+      <p id="modal-message" class="modal-message">Are you sure you want to do this?</p>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn-secondary">Cancel</button>
+        <button id="modal-confirm" class="btn-secondary btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <!-- QR Code Library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <!-- YouTube IFrame API — bridge to handle the race condition with ES modules -->

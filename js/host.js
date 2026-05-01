@@ -123,6 +123,7 @@ async function playNextSong() {
       .select('*')
       .eq('played', false)
       .order('votes', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(1);
 
     if (error) throw error;
@@ -130,6 +131,7 @@ async function playNextSong() {
     if (data && data.length > 0) {
       const song = data[0];
       currentSong = song;
+      broadcastState();
 
       // Show player, hide idle
       nowPlayingSection.classList.add('active');
@@ -145,6 +147,8 @@ async function playNextSong() {
     } else {
       // No songs — show idle state
       currentSong = null;
+      broadcastState();
+      
       nowPlayingSection.classList.remove('active');
       idleState.classList.remove('hidden');
 
@@ -186,7 +190,8 @@ async function refreshQueueDisplay() {
       .from('queue')
       .select('*')
       .eq('played', false)
-      .order('votes', { ascending: false });
+      .order('votes', { ascending: false })
+      .order('created_at', { ascending: true });
 
     if (err1) throw err1;
 
@@ -260,7 +265,11 @@ async function refreshQueueDisplay() {
           // Attach delete listener
           const delBtn = card.querySelector('.btn-delete-track');
           delBtn.addEventListener('click', async (e) => {
-            if (confirm('Remove this track from the queue?')) {
+            const isConfirmed = await showConfirmDialog(
+              'Remove Track',
+              'Remove this track from the queue?'
+            );
+            if (isConfirmed) {
               try {
                 await supabase.from('queue').update({ played: true }).eq('id', song.id);
                 refreshQueueDisplay();
@@ -311,9 +320,18 @@ async function refreshQueueDisplay() {
 }
 
 // ── Supabase Realtime ──
+let syncChannel;
+
+function broadcastState() {
+  if (syncChannel) {
+    syncChannel.track({ isHost: true, currentSong }).catch(err => console.error('[Votify] Error tracking presence:', err));
+  }
+}
+
 function setupRealtime() {
-  const channel = supabase
-    .channel('host-queue-updates')
+  syncChannel = supabase.channel('votify-sync');
+
+  syncChannel
     .on(
       'postgres_changes',
       {
@@ -331,16 +349,16 @@ function setupRealtime() {
         }
       }
     )
-    .subscribe((status) => {
+    .subscribe(async (status) => {
       console.log('[Votify] Realtime status:', status);
       if (status === 'SUBSCRIBED') {
         reconnectBanner.classList.remove('visible');
+        broadcastState();
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         reconnectBanner.classList.add('visible');
         showToast('Connection lost — attempting to reconnect...', 'error');
-        // Retry after 3 seconds
         setTimeout(() => {
-          channel.subscribe();
+          syncChannel.subscribe();
         }, 3000);
       }
     });
@@ -385,9 +403,47 @@ pinInput.addEventListener('keydown', (e) => {
   pinError.classList.add('hidden');
 });
 
+// ── Custom Confirm Dialog ──
+function showConfirmDialog(title, message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    const titleEl = document.getElementById('modal-title');
+    const messageEl = document.getElementById('modal-message');
+    const btnCancel = document.getElementById('modal-cancel');
+    const btnConfirm = document.getElementById('modal-confirm');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    modal.classList.add('visible');
+
+    const cleanup = () => {
+      modal.classList.remove('visible');
+      btnCancel.removeEventListener('click', onCancel);
+      btnConfirm.removeEventListener('click', onConfirm);
+    };
+
+    const onCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+
+    const onConfirm = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    btnCancel.addEventListener('click', onCancel);
+    btnConfirm.addEventListener('click', onConfirm);
+  });
+}
+
 // ── Clear Queue ──
 document.getElementById('btn-clear-queue')?.addEventListener('click', async () => {
-  if (confirm('Are you sure you want to completely clear the upcoming queue?')) {
+  const isConfirmed = await showConfirmDialog(
+    'Clear Queue',
+    'Are you sure you want to completely clear the upcoming queue?'
+  );
+  if (isConfirmed) {
     try {
       await supabase.from('queue').update({ played: true }).eq('played', false);
       showToast('Queue cleared', 'success');
