@@ -5,12 +5,19 @@
 
 import { supabase } from './supabase-config.js';
 
-// ── Invidious Instances (open-source YouTube mirrors) ──
+// ── Search Instances (Piped + Invidious) ──
+const PIPED_INSTANCES = [
+  'https://api.piped.private.coffee',
+  'https://pipedapi.kavin.rocks',
+  'https://pipedapi.tokhmi.xyz',
+  'https://pipedapi.syncpundit.io'
+];
+
 const INVIDIOUS_INSTANCES = [
-  'https://vid.puffyan.us',
-  'https://invidious.snopyta.org',
-  'https://invidious.kavin.rocks',
-  'https://y.com.sb',
+  'https://inv.thepixora.com',
+  'https://invidious.nerdvpn.de',
+  'https://inv.nadeko.net',
+  'https://invidious.jing.rocks'
 ];
 
 // ── State ──
@@ -73,8 +80,29 @@ function showToast(message, type = 'info') {
   }, 3500);
 }
 
-// ── Invidious Search ──
+// ── YouTube Search (Piped API + Invidious Fallback) ──
 async function searchYouTube(query) {
+  // Try Piped instances first
+  for (const instance of PIPED_INSTANCES) {
+    try {
+      const response = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`);
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (data && data.items) {
+        return data.items.slice(0, 8).map(video => ({
+          youtube_id: video.url.replace('/watch?v=', ''),
+          title: video.title,
+          thumbnail_url: video.thumbnail || `https://i.ytimg.com/vi/${video.url.replace('/watch?v=', '')}/mqdefault.jpg`,
+          author: video.uploaderName || '',
+        }));
+      }
+    } catch (e) {
+      console.warn(`[Votify] Piped instance ${instance} failed`);
+      continue;
+    }
+  }
+
+  // Try Invidious instances as fallback
   for (const instance of INVIDIOUS_INSTANCES) {
     try {
       const response = await fetch(
@@ -96,10 +124,11 @@ async function searchYouTube(query) {
           author: video.author || '',
         }));
     } catch (e) {
+      console.warn(`[Votify] Invidious instance ${instance} failed`);
       continue; // instance failed, try the next one
     }
   }
-  throw new Error('All Invidious instances failed');
+  throw new Error('All search instances failed');
 }
 
 // ── Search Handler ──
