@@ -18,7 +18,9 @@
   z-index: 1;
   display: grid;
   grid-template-columns: 260px 1fr 380px;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   gap: var(--space-md);
   padding: var(--space-md);
 }
@@ -117,6 +119,7 @@
   justify-content: center;
   position: relative;
   min-width: 0; /* Prevent flex blowout */
+  min-height: 0;
 }
 
 .now-playing-section {
@@ -244,6 +247,7 @@
   display: flex;
   flex-direction: column;
   padding: var(--space-lg);
+  min-height: 0;
 }
 
 .queue-header {
