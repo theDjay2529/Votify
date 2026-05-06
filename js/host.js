@@ -144,6 +144,9 @@ async function playNextSong() {
       player.loadVideoById(song.youtube_id);
 
       console.log(`[Votify] Now playing: ${song.title}`);
+     
+       // Update queue display to filter out now-playing song
+       await refreshQueueDisplay();
     } else {
       // No songs — show idle state
       currentSong = null;
@@ -155,6 +158,9 @@ async function playNextSong() {
       if (player && typeof player.stopVideo === 'function') {
         player.stopVideo();
       }
+     
+       // Update queue display since no song is playing
+       await refreshQueueDisplay();
     }
   } catch (err) {
     console.error('[Votify] Error fetching next song:', err);
