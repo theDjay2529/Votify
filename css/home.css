@@ -1,0 +1,330 @@
+/* ============================================================
+   VOTIFY V2 — Home Screen Styles (css/home.css)
+   ============================================================ */
+
+/* ── Top Bar ─────────────────────────────────────────────── */
+.home-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-2xl);
+  background: rgba(10, 10, 15, 0.8);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.home-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.home-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+.home-username {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.btn-sm {
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.8rem;
+}
+
+/* ── Main Layout ─────────────────────────────────────────── */
+.home-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-3xl) var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xl);
+}
+
+/* ── Welcome ─────────────────────────────────────────────── */
+.home-greeting {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin-bottom: var(--space-xs);
+}
+.home-greeting-sub {
+  color: var(--text-secondary);
+}
+
+/* ── Active Room Banner ───────────────────────────────────── */
+.active-room-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) var(--space-xl);
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+  border: 1px solid rgba(134, 239, 172, 0.3);
+}
+.active-room-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+.active-room-icon { font-size: 1.5rem; }
+.active-room-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #86efac;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.active-room-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.active-room-code {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.active-room-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+.btn-danger-outline {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+}
+.btn-danger-outline:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+}
+
+/* ── Section Heading ─────────────────────────────────────── */
+.section-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+}
+
+/* ── Mode Cards ──────────────────────────────────────────── */
+.mode-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+}
+.mode-card {
+  padding: var(--space-2xl);
+  text-align: left;
+  background: none;
+  border: 1.5px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+.mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), transparent);
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+.mode-card:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-glow-purple);
+}
+.mode-card:hover::before { opacity: 1; }
+.mode-card-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--space-md);
+}
+.mode-card-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin-bottom: var(--space-sm);
+}
+.mode-card-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-lg);
+}
+.mode-card-cta {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+.badge-coming-soon {
+  display: inline-block;
+  padding: 3px 10px;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+}
+
+/* ── Recent Rooms ────────────────────────────────────────── */
+.recent-rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.recent-room-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+.recent-room-mode-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  display: block;
+}
+.recent-room-name {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.recent-room-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.room-code-chip {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--accent-primary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.recent-room-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.recent-room-status.active {
+  background: rgba(134, 239, 172, 0.15);
+  color: #86efac;
+}
+.recent-room-status.ended {
+  background: rgba(156, 163, 175, 0.15);
+  color: var(--text-muted);
+}
+.recent-room-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ── Create Room Modal ───────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+.modal-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-overlay.visible .modal-content {
+  transform: scale(1);
+}
+.modal-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--space-md);
+}
+.modal-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: var(--space-sm);
+}
+.modal-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-xl);
+}
+.modal-actions {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+.modal-close {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: var(--space-xs);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.modal-close:hover { color: var(--text-primary); }
+.modal-content {
+  position: relative;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  transform: scale(0.96);
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+.btn-full { width: 100%; }
+
+/* ── Form Reuse ──────────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: var(--space-xs); }
+.form-label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+.form-input {
+  width: 100%;
+  padding: var(--space-md);
+  background: var(--bg-glass);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out);
+  box-sizing: border-box;
+}
+.form-input::placeholder { color: var(--text-muted); }
+.form-input:focus { border-color: var(--accent-primary); box-shadow: var(--shadow-glow-purple); }
+.auth-form { display: flex; flex-direction: column; gap: var(--space-md); }
+.btn-submit { width: 100%; margin-top: var(--space-xs); }
+.form-error {
+  color: #f87171;
+  font-size: 0.82rem;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+}

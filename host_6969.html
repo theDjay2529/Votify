@@ -4,127 +4,65 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Votify — Host Screen</title>
-  <meta name="description" content="Votify host display for projectors — shows now playing, up next, and QR code for attendees." />
+  <meta name="description" content="Votify host display — shows now playing, up next, and QR code for attendees." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>" />
   <link rel="stylesheet" href="/css/global.css" />
   <link rel="stylesheet" href="/css/host.css" />
 </head>
 <body>
-  <!-- Background -->
   <canvas id="visualizer-canvas" class="visualizer-bg"></canvas>
   <div class="bg-grid"></div>
   <div class="bg-glow purple"></div>
   <div class="bg-glow cyan"></div>
 
-  <!-- Reconnecting banner -->
-  <div class="reconnect-banner" id="reconnect-banner">
-    ⚠️ Reconnecting to server...
-  </div>
-
-  <!-- Toast container -->
+  <div class="reconnect-banner" id="reconnect-banner">⚠️ Reconnecting to server...</div>
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- PIN Gate Overlay -->
-  <div class="pin-gate" id="pin-gate">
-    <div class="pin-gate-card glass-card">
-      <div class="pin-gate-icon">🔒</div>
-      <h2 class="pin-gate-title gradient-text">Host Access</h2>
-      <p class="pin-gate-desc">Enter the host PIN to continue</p>
-      <div class="pin-input-wrapper">
-        <input
-          type="password"
-          id="pin-input"
-          class="pin-input"
-          maxlength="5"
-          placeholder="•••••"
-          autocomplete="off"
-          inputmode="numeric"
-          aria-label="Host PIN"
-        />
-      </div>
-      <button class="btn-primary pin-submit" id="pin-submit">Unlock</button>
-      <p class="pin-error hidden" id="pin-error">Incorrect PIN. Try again.</p>
-    </div>
-  </div>
-
-  <style>
-    .pin-gate {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg-primary);
-    }
-    .pin-gate.hidden { display: none; }
-    .pin-gate-card {
-      padding: var(--space-2xl) var(--space-3xl);
-      text-align: center;
-      max-width: 380px;
-      width: 90%;
-      animation: fade-in-up 0.5s var(--ease-out);
-    }
-    .pin-gate-icon { font-size: 3rem; margin-bottom: var(--space-md); }
-    .pin-gate-title { font-size: 1.8rem; font-weight: 800; margin-bottom: var(--space-sm); }
-    .pin-gate-desc { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: var(--space-xl); }
-    .pin-input-wrapper { margin-bottom: var(--space-lg); }
-    .pin-input {
-      width: 160px;
-      padding: var(--space-md);
-      font-size: 2rem;
-      font-weight: 700;
-      text-align: center;
-      letter-spacing: 0.5em;
-      background: var(--bg-glass);
-      border: 2px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      color: var(--text-primary);
-      outline: none;
-      transition: border-color var(--duration-normal) var(--ease-out);
-    }
-    .pin-input:focus { border-color: var(--accent-primary); box-shadow: var(--shadow-glow-purple); }
-    .pin-input.error { border-color: #ef4444; animation: shake 0.4s ease-in-out; }
-    .pin-submit { width: 100%; margin-top: var(--space-sm); }
-    .pin-error { color: #f87171; font-size: 0.8rem; margin-top: var(--space-md); }
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-8px); }
-      40%, 80% { transform: translateX(8px); }
-    }
-  </style>
-
-  <!-- Main layout -->
   <div class="host-layout" id="host-layout">
 
-    <!-- Left sidebar: QR + branding -->
-    <aside class="host-sidebar" id="host-sidebar">
+    <!-- ── Left Sidebar ── -->
+    <aside class="host-sidebar glass-card" id="host-sidebar">
       <div class="sidebar-brand">
         <span class="sidebar-logo">🎧</span>
         <h1 class="sidebar-title gradient-text">Votify</h1>
       </div>
 
+      <!-- QR + Room Info (all in one card) -->
       <div class="qr-section glass-card" id="qr-section">
+        <div class="qr-room-header">
+          <div class="qr-room-name" id="display-room-name">Loading...</div>
+          <div class="qr-room-code" id="display-room-code">------</div>
+        </div>
+
         <div class="qr-label">Scan to Join</div>
         <div class="qr-code" id="qr-code"></div>
-        <div class="qr-url" id="qr-url"></div>
+        <div class="qr-url" id="qr-url" title="Click to copy link"></div>
+
+        <!-- PIN reveal (hidden if no PIN) -->
+        <div class="pin-reveal-row hidden" id="pin-reveal-row">
+          <span class="pin-reveal-label">PIN</span>
+          <span class="pin-reveal-value" id="display-room-pin">••••</span>
+          <button class="btn-icon-sm" id="btn-toggle-pin" title="Show/Hide PIN">
+            <svg id="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg id="eye-closed" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="stats-section">
-        <div class="stat-item glass-card">
-          <div class="stat-value" id="stat-queue">0</div>
-          <div class="stat-label">In Queue</div>
-        </div>
-        <div class="stat-item glass-card">
-          <div class="stat-value" id="stat-played">0</div>
-          <div class="stat-label">Played</div>
-        </div>
+      <!-- Sidebar Actions -->
+      <div class="sidebar-actions">
+        <button class="btn-sidebar-action" id="btn-show-participants">
+          <span>👥 Participants</span>
+          <span class="btn-participants-badge" id="p-badge">0</span>
+        </button>
       </div>
+
+      <!-- End session -->
+      <button class="btn-end-session" id="btn-end-session">🏃‍♂️ Leave Session</button>
     </aside>
 
-    <!-- Center: Player -->
+    <!-- ── Center: Player ── -->
     <main class="host-main">
-      <!-- Now Playing -->
       <div class="now-playing-section" id="now-playing-section">
         <div class="now-playing-header">
           <div class="now-playing-badge">
@@ -138,18 +76,17 @@
         </div>
         <div class="now-playing-info" id="now-playing-info">
           <h2 class="now-playing-title" id="now-playing-title">Waiting for songs...</h2>
-          <div style="display: flex; gap: 8px;">
-            <button id="btn-blur-player" class="btn-icon" title="Toggle Privacy Blur" style="background: rgba(255,255,255,0.1); border-radius: 50%; padding: 8px; width: 36px; height: 36px;">
+          <div style="display:flex;gap:8px;">
+            <button id="btn-blur-player" class="btn-icon" title="Toggle Privacy Blur" style="background:rgba(255,255,255,0.1);border-radius:50%;padding:8px;width:36px;height:36px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
             </button>
-            <button id="btn-skip-track" class="btn-icon" title="Skip to next track" style="background: rgba(255,255,255,0.1); border-radius: 50%; padding: 8px; width: 36px; height: 36px;">
+            <button id="btn-skip-track" class="btn-icon" title="Skip to next" style="background:rgba(255,255,255,0.1);border-radius:50%;padding:8px;width:36px;height:36px;">
               <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M5 4l10 8-10 8V4zm12 0h2v16h-2V4z"/></svg>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Idle state -->
       <div class="idle-state" id="idle-state">
         <div class="idle-icon">🎵</div>
         <h2 class="idle-title">Be the first to add a song!</h2>
@@ -157,32 +94,38 @@
       </div>
     </main>
 
-    <!-- Right sidebar: Up Next -->
-    <aside class="host-queue" id="host-queue">
+    <!-- ── Right: Queue ── -->
+    <aside class="host-queue glass-card" id="host-queue">
       <div class="queue-header">
-        <h2 class="queue-title">⏭️ Up Next</h2>
-        <div class="queue-actions">
-          <span class="queue-count" id="queue-count">0</span>
-          <button id="btn-clear-queue" class="btn-icon" title="Clear Queue" aria-label="Clear Queue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+        <div class="queue-tabs">
+          <button class="queue-tab active" id="tab-queue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Queue <span class="tab-count" id="stat-queue">0</span>
+          </button>
+          <button class="queue-tab" id="tab-history">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5V15h5"/></svg>
+            History <span class="tab-count" id="stat-played">0</span>
           </button>
         </div>
+        <button id="btn-clear-queue" class="btn-icon" title="Clear Queue" aria-label="Clear Queue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+        </button>
       </div>
       <div class="queue-list" id="queue-list">
-        <!-- Songs will be rendered here -->
         <div class="queue-empty" id="queue-empty">
           <p>No songs in queue yet</p>
           <p class="queue-empty-hint">Waiting for participants to add songs...</p>
         </div>
       </div>
+      <div class="history-list hidden" id="history-list"></div>
     </aside>
   </div>
 
-  <!-- Custom Confirmation Modal -->
+  <!-- Confirm Modal -->
   <div id="confirm-modal" class="modal-overlay">
     <div class="modal-content glass-card">
       <h3 id="modal-title" class="modal-title">Confirm Action</h3>
-      <p id="modal-message" class="modal-message">Are you sure you want to do this?</p>
+      <p id="modal-message" class="modal-message">Are you sure?</p>
       <div class="modal-actions">
         <button id="modal-cancel" class="btn-secondary">Cancel</button>
         <button id="modal-confirm" class="btn-secondary btn-danger">Confirm</button>
@@ -190,18 +133,26 @@
     </div>
   </div>
 
-  <!-- QR Code Library -->
+  <!-- Participants Drawer -->
+  <div id="participants-drawer" class="drawer-overlay hidden">
+    <div class="drawer glass-card">
+      <div class="drawer-header">
+        <h3>Participants</h3>
+        <button class="btn-close-drawer" id="btn-close-drawer">✕</button>
+      </div>
+      <div class="participants-list" id="participants-list">
+        <!-- populated by js -->
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <!-- YouTube IFrame API — bridge to handle the race condition with ES modules -->
   <script>
-    // The YouTube API calls onYouTubeIframeAPIReady synchronously.
-    // Since host.js is a module (loads deferred), we bridge with a promise.
     window.__ytReady = new Promise(function (resolve) {
       window.onYouTubeIframeAPIReady = resolve;
     });
   </script>
   <script src="https://www.youtube.com/iframe_api"></script>
-  <!-- App -->
-  <script type="module" src="/js/host.js"></script>
+  <script type="module" src="js/host.js?v=6"></script>
 </body>
 </html>

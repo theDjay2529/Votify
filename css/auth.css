@@ -1,0 +1,251 @@
+/* ============================================================
+   VOTIFY V2 — Auth Page Styles
+   ============================================================ */
+
+/* ── Orbs ─────────────────────────────────────────────────── */
+.auth-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: 0;
+}
+.auth-orb-1 {
+  width: 500px;
+  height: 500px;
+  background: #a855f7;
+  top: -100px;
+  left: -100px;
+  animation: float 8s ease-in-out infinite;
+}
+.auth-orb-2 {
+  width: 400px;
+  height: 400px;
+  background: #06b6d4;
+  bottom: -80px;
+  right: -80px;
+  animation: float 8s ease-in-out infinite;
+  animation-delay: -4s;
+}
+
+/* ── Page Layout ─────────────────────────────────────────── */
+.auth-page {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-xl);
+}
+
+/* ── Auth Card ───────────────────────────────────────────── */
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-2xl) var(--space-2xl);
+  animation: fade-in-up 0.5s var(--ease-out);
+}
+
+/* ── Brand ───────────────────────────────────────────────── */
+.auth-brand {
+  text-align: center;
+  margin-bottom: var(--space-2xl);
+}
+.auth-logo {
+  display: block;
+  font-size: 3rem;
+  margin-bottom: var(--space-sm);
+  animation: float 3s ease-in-out infinite;
+}
+.auth-title {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin-bottom: var(--space-xs);
+}
+.auth-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* ── Google Button ───────────────────────────────────────── */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  background: #fff;
+  color: #1f1f1f;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.btn-google:hover {
+  background: #f5f5f5;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  transform: translateY(-1px);
+}
+.btn-google:active { transform: translateY(0); }
+.btn-google:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: var(--space-xl) 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+/* ── Form Elements ───────────────────────────────────────── */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.form-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.form-hint {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-md);
+  background: var(--bg-glass);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out);
+  box-sizing: border-box;
+}
+.form-input::placeholder { color: var(--text-muted); }
+.form-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow-purple);
+}
+.form-input.error { border-color: #ef4444; }
+
+/* ── Password Input Wrapper ──────────────────────────────── */
+.input-password-wrapper {
+  position: relative;
+}
+.input-password-wrapper .form-input {
+  padding-right: 44px;
+}
+.btn-toggle-pw {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.btn-toggle-pw:hover { color: var(--text-primary); }
+
+/* ── Error Message ───────────────────────────────────────── */
+.form-error {
+  color: #f87171;
+  font-size: 0.82rem;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Submit Button ───────────────────────────────────────── */
+.btn-submit {
+  width: 100%;
+  margin-top: var(--space-xs);
+}
+
+/* ── Profile Setup Overlay ───────────────────────────────── */
+.setup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(8px);
+}
+.setup-overlay.hidden { display: none; }
+
+.setup-card {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-2xl);
+  text-align: center;
+  animation: fade-in-up 0.4s var(--ease-out);
+}
+
+.setup-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+}
+.setup-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: var(--space-sm);
+}
+.setup-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-xl);
+  text-align: left;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .auth-card,
+  .setup-card {
+    padding: var(--space-xl) var(--space-lg);
+  }
+}

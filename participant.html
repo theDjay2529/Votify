@@ -25,10 +25,12 @@
 
   <!-- Header -->
   <header class="p-header">
-    <a href="/" class="p-header-brand">
+    <a href="/join.html" class="p-header-brand">
       <span class="p-header-logo">🎧</span>
       <span class="p-header-title gradient-text">Votify</span>
     </a>
+    <!-- V2: Room name shown in header -->
+    <div class="p-header-room" id="p-header-room">Joining room...</div>
   </header>
 
   <!-- Main content -->
@@ -58,16 +60,21 @@
       <div class="results-list" id="results-list"></div>
     </section>
 
-    <!-- Now Playing (small indicator) -->
-    <section class="now-playing-mini glass-card" id="now-playing-mini">
+    <!-- Now Playing mini (V2: includes skip vote button) -->
+    <section class="now-playing-mini glass-card hidden" id="now-playing-mini">
       <div class="npm-badge">
         <span class="pulse-dot-sm"></span>
         NOW PLAYING
       </div>
       <div class="npm-title" id="npm-title">Waiting for songs...</div>
+      <!-- V2: Skip vote -->
+      <button class="npm-skip" id="btn-skip-vote" title="Vote to skip this song">
+        <span class="npm-skip-icon">⏭</span>
+        <span id="skip-vote-text">0/0</span>
+      </button>
     </section>
 
-    <!-- Queue Section -->
+    <!-- Queue Section (V2: shows net score and dual vote buttons) -->
     <section class="queue-section" id="queue-section">
       <div class="section-header">
         <h2 class="section-title">🗳️ Queue</h2>
@@ -84,7 +91,37 @@
     </section>
   </main>
 
-  <!-- App -->
-  <script type="module" src="/js/participant.js"></script>
+  <!-- V2: Identity Modal -->
+  <div class="identity-modal-overlay hidden" id="identity-modal">
+    <div class="identity-card glass-card">
+      <div class="identity-icon">👋</div>
+      <h2 class="identity-title">What's your name?</h2>
+      <p class="identity-desc">Enter a display name to join the room and start voting.</p>
+      <form class="identity-form" id="identity-form">
+        <input
+          type="text"
+          id="p-identity-name"
+          class="identity-input"
+          placeholder="Your name..."
+          maxlength="20"
+          autocomplete="off"
+          required
+        />
+        <button type="submit" class="btn-primary">Enter Room →</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- V2: Status Modal (room ended / kicked) -->
+  <div class="identity-modal-overlay hidden" id="status-modal">
+    <div class="identity-card glass-card">
+      <div class="identity-icon" id="status-icon">👋</div>
+      <h2 class="identity-title" id="status-title">Room Ended</h2>
+      <p class="identity-desc" id="status-desc">This session has been closed by the host.</p>
+      <a href="join.html" class="btn-primary">Join Another Room</a>
+    </div>
+  </div>
+
+  <script type="module" src="js/participant.js?v=6"></script>
 </body>
 </html>

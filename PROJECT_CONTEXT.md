@@ -1,428 +1,236 @@
-# Votify Project Context
+# Votify V2 Project Context
 
-This file is the living source of truth for the current Votify implementation. Update it whenever a major feature, schema change, deployment change, or entry-point change is made.
+This file is the living source of truth for the **Votify V2** implementation. Update it whenever a major feature, schema change, or architectural shift is made.
+
+---
 
 ## 1. What Votify Is
 
-Votify is a real-time, crowd-controlled YouTube music queue for live events.
+Votify is a real-time, crowd-controlled YouTube music experience. A Host starts a "Room", participants join via QR code, and everyone votes on the music queue together.
 
-The app has two main user experiences:
+---
 
-- Host screen: projector / speaker output that plays the queue, shows the current song, and displays a QR code for joining.
-- Participant screen: mobile-first page where attendees search for songs, add them to the queue, and vote songs up.
+## 2. Technology Stack
 
-The system is built as a static frontend that talks directly to Supabase for persistence and realtime sync.
+| Layer | Technology |
+|---|---|
+| Frontend | Vanilla HTML5, CSS3, ES6+ JS |
+| Build Tool | Vite |
+| Backend/DB | Supabase (Postgres + Auth + Realtime) |
+| Playback | YouTube IFrame Player API |
+| Realtime | Supabase Channels (Presence + Broadcast + Postgres Changes) |
+| Search | Piped API (Primary) → Invidious (Fallback) |
 
-## 2. Current Tech Stack
-
-- Frontend: Vanilla HTML, CSS, and JavaScript.
-- Build tool: Vite.
-- Backend: Supabase Postgres, Supabase Realtime, and one RPC function.
-- Search: Piped instances first, then Invidious instances as fallback.
-- Playback: YouTube IFrame Player API.
-- QR code rendering: qrcode.js loaded from CDN.
+---
 
 ## 3. File Structure
 
-Root files:
+### Pages
+- `index.html` — **Landing Page**: Entry point with "Join Room" and "Host Room" options (Dark themed).
+- `home.html` — **Host Dashboard**: Manage active/paused rooms, create new rooms.
+- `auth.html` — Login page (Google OAuth + Username/Password).
+- `host_6969.html` — Host Projector Screen (playback + controls).
+- `join.html` — Participant entry (room code input).
+- `participant.html` — Participant remote (search, vote, skip).
+
+### JS Modules
+- `js/supabase-config.js` — Supabase client init.
+- `js/auth.js` — Auth guards, session helpers, profile management.
+- `js/rooms.js` — Room lifecycle (create/pause/activate/delete/kick/ban).
+- `js/voting.js` — Upvote, downvote, skip vote, local vote state.
+- `js/host.js` — Playback authority, presence broadcaster, history tab.
+- `js/participant.js` — Search, add songs, vote, queue rendering (mirrors host exactly).
+- `js/home.js` — Dashboard logic: active + paused rooms, create room modal.
+
+### CSS
+- `css/global.css` — Design tokens, glassmorphism, shared utilities.
+- `css/home.css` — Dashboard styles, modal styles.
+- `css/host.css` — Host layout, queue/history tabs, drawer styles.
+- `css/participant.css` — Mobile queue cards, voting controls, now playing.
+
+---
+
+## 4. Database Schema (V2)
+
+### Tables
+| Table | Purpose |
+|---|---|
+| `profiles` | Maps `auth.users` → custom username |
+| `rooms` | Room metadata: code, name, pin, status, host_id |
+| `queue` | Songs: upvotes, downvotes, played flag, added_by |
+| `votes_cast` | Per-user vote tracking (prevents double voting) |
+| `room_participants` | Active participant log per room |
+| `room_bans` | Kicked participant tokens + `display_name` per room |
+| `skip_votes` | Democratic skip votes (threshold = 50% of participants) |
+
+### Room Status Values
+| Status | Meaning |
+|---|---|
+| `active` | Room is live, host is present, participants can add/vote |
+| `paused` | Host left temporarily; participants can watch but not add/vote. Hosts may have multiple paused rooms. |
+| `ended` | Deprecated (use `delete` instead) |
+
+### Room Creation Rule
+- A host can have **one active room** at a time.
+- A host can have **multiple paused rooms**.
+- Creating a new room is allowed while old rooms are paused.
+- Rejoining a paused room activates it, so it will fail if the host already has another active room.
+
+---
+
+## 5. Realtime Architecture — Hybrid Model
+
+All clients join a single channel: `room-{ROOM_CODE}`.
+
+| Channel Type | Events | Purpose |
+|---|---|---|
+| Postgres Changes | `queue *` | Queue persistence updates |
+| Postgres Changes | `rooms UPDATE` | Detect pause/active/ended status (Fallback) |
+| Postgres Changes | `room_bans INSERT` | Backup kick enforcement |
+| Presence | `sync` | Host tracks `currentSong` & `roomStatus` for new joiners |
+| Broadcast | `queue_update` | **Instant** queue refresh across all clients |
+| Broadcast | `now_playing` | **Instant** song sync when track changes |
+| Broadcast | `room_status_update` | **Instant** pause/resume UI triggers |
+| Broadcast | `kick` | **Instant** kick enforcement |
+
+> **Critical Rule**: Postgres Changes can have 200-2000ms latency. Broadcasts are sub-100ms. Always send a Broadcast ping *after* any DB write that needs instant UI feedback.
+
+---
+
+## 6. Key Flows
+
+### 6.1 Landing & Auth
+- `index.html` is the root. It checks for a session.
+- If a logged-in host visits, "Host a Room" links to `home.html`.
+- If unauthenticated, it goes to `auth.html`.
+- Participants go directly to `join.html`.
+
+### 6.2 Host Leave / Rejoin
+1. Host clicks **Leave Session** → `pauseRoom(roomId)` → `host.js` broadcasts `room_status_update: paused` → redirect to `home.html`.
+2. Participants' listener fires instantly → room paused banner appears → search/voting disabled.
+3. Host rejoins from `home.html` → `host.js` loads → calls `activateRoom(roomId)` → participants see "Host is back!" toast.
+
+### 6.3 Participants Drawer
+- Darkened backdrop (75% opacity + 12px blur) with click-outside-to-close.
+- **Banned Tab** shows `display_name` (if available) for better identification.
+
+---
+
+## 7. Known Bug Fixes Applied This Session
+
+| Bug | Fix |
+|---|---|
+| "Failed to add song" false error | Moved `syncChannel` to module scope in `participant.js`. |
+| Skip button logic | Corrected column name from `room_item_id` to `queue_item_id`. |
+| Ghost login (dhananjaypatel) | Corrected post-login redirects to `home.html` instead of `index.html`. |
+| Participant Sync Lag | Added `now_playing` and `room_status_update` broadcasts for sub-100ms sync. |
+| Kicked users had no names | Added `display_name` column to `room_bans` table. |
+| Modal UI regressions | Redesigned Create Room modal and added `hidden` class to stray confirm modals. |
+| Paused rooms blocked new room creation | Restored active-only room creation guard; paused rooms remain saved/rejoinable. |
 
-- `index.html`: landing page with a single join button and feature cards.
-- `host_6969.html`: host projector view with PIN gate, QR code, player, and queue sidebar.
-- `participant.html`: attendee mobile view with search, now-playing card, and queue list.
-- `supabase-schema.sql`: database schema and permissions for the queue table and vote RPC.
-- `vite.config.js`: Vite config, dev server settings, and multiple HTML entry points.
-- `netlify.toml`: deployment config and redirect behavior.
-- `.env.example`: required environment variables template.
-- `README.md`: quick start and event setup instructions.
-- `PROJECT_CONTEXT.md`: this living implementation summary.
+---
 
-Source folders:
+## 8. Environment Variables
 
-- `css/global.css`: shared design tokens and common utilities.
-- `css/host.css`: host screen layout and queue/player styling.
-- `css/participant.css`: participant screen layout and queue/search styling.
-- `js/supabase-config.js`: Supabase client initialization.
-- `js/host.js`: host playback, QR generation, realtime sync, PIN handling, queue rendering.
-- `js/participant.js`: song search, vote/add logic, anti-spam local storage, realtime queue rendering.
-
-## 4. Entry Points And Routing
-
-The app is a multi-page Vite build.
-
-- `/` loads `index.html`.
-- `/host_6969.html` loads the host view.
-- `/participant.html` loads the attendee view.
-
-Important note: the host page is not a SPA route. It is a standalone HTML file with its own module entry point.
-
-## 5. Runtime Architecture
-
-### 5.1 Host Flow
-
-The host page does four jobs:
-
-1. Protect access with a PIN gate.
-2. Generate a QR code pointing to the participant page.
-3. Fetch the current queue from Supabase and play the top song with YouTube IFrame Player.
-4. Subscribe to realtime queue changes and keep the queue sidebar updated.
-
-The host logic is in `js/host.js` and is initialized only after the correct PIN is entered or already stored in `sessionStorage`.
-
-### 5.2 Participant Flow
-
-The participant page does five jobs:
-
-1. Accept text search input.
-2. Search YouTube-style endpoints through Piped or Invidious.
-3. Show results as tappable cards.
-4. Add a new queue item or vote an existing unplayed item.
-5. Render the live queue and now-playing status from Supabase realtime updates.
-
-The participant logic is in `js/participant.js` and starts automatically on page load.
-
-## 6. Supabase Backend
-
-The backend is intentionally small.
-
-### 6.1 Queue Table
-
-The current schema in `supabase-schema.sql` creates a single `queue` table with the following fields:
-
-- `id` UUID primary key, defaulting to `uuid_generate_v4()`.
-- `youtube_id` TEXT, required.
-- `title` TEXT, required.
-- `thumbnail_url` TEXT, optional.
-- `votes` INTEGER, default `1`.
-- `played` BOOLEAN, default `false`.
-- `created_at` TIMESTAMPTZ, default UTC `now()`.
-
-### 6.2 Realtime
-
-Realtime is enabled on the `queue` table through the Supabase publication:
-
-- `ALTER PUBLICATION supabase_realtime ADD TABLE queue;`
-
-Both host and participant subscribe to postgres changes on this table and re-fetch/render the queue when inserts or updates happen.
-
-### 6.3 Vote RPC
-
-The database includes a small RPC function:
-
-- `increment_vote(row_id UUID)`
-
-It performs an atomic `UPDATE queue SET votes = votes + 1 WHERE id = row_id;` inside Postgres. This avoids lost updates when multiple people vote at nearly the same time.
-
-### 6.4 RLS And Policies
-
-Row Level Security is enabled, but permissive policies are added for hackathon-style public use:
-
-- public select
-- public insert
-- public update
-- public delete
-
-This means the queue is writable by the connected clients without requiring auth.
-
-## 7. Environment Variables
-
-The app expects these Vite env vars:
-
-- `VITE_SUPABASE_URL`: Supabase project URL.
-- `VITE_SUPABASE_ANON_KEY`: Supabase anon key.
-- `VITE_HOST_PIN`: 5-digit host PIN for the projector screen.
-- `VITE_DEPLOYED_URL`: deployed public base URL used when generating the QR code.
-
-The example file is `.env.example`. Copy it to `.env` and replace placeholder values.
-
-## 8. Host Implementation Details
-
-### 8.1 Authentication Gate
-
-The host screen is locked behind a PIN overlay in `host_6969.html`.
-
-- The entered PIN is compared against `import.meta.env.VITE_HOST_PIN`.
-- A successful unlock sets `sessionStorage.votify_host_auth = 'true'`.
-- If already authenticated in this session, the host page skips the gate.
-
-### 8.2 QR Code Generation
-
-`js/host.js` generates a QR code that points to the participant page.
-
-- If `VITE_DEPLOYED_URL` exists, it is used as the base.
-- Otherwise it falls back to `window.location.origin`, which makes local Wi-Fi testing work.
-- The QR is rendered with `QRCode` from the CDN-loaded qrcode.js library.
-
-### 8.3 Playback Loop
-
-Playback is driven from the `queue` table, sorted by:
-
-1. `votes` descending.
-2. `created_at` ascending.
-
-The host:
-
-- queries the top unplayed song,
-- loads `youtube_id` into the YouTube player,
-- listens for `YT.PlayerState.ENDED`,
-- marks the current song as played,
-- then loads the next song after a short delay.
-
-If the YouTube player emits an error, the host treats it as a skip and advances the queue.
-
-### 8.4 Realtime Presence
-
-The host uses a Supabase channel named `votify-sync` and tracks presence data containing:
-
-- `isHost: true`
-- `currentSong`
-
-Participants read this presence data so they can show the exact track the host is playing, instead of guessing from the queue order.
-
-### 8.5 Host Queue Rendering
-
-The host queue sidebar renders all unplayed songs except the current song as an “Up Next” list.
-
-- It updates the stats counters for queue length and played count.
-- It uses FLIP animation to preserve motion when queue order changes.
-- It supports deleting a track by marking it `played: true` after confirmation.
-- It supports clear-queue by marking all unplayed rows as played.
-- It supports skip-track by marking the current song as played.
-
-### 8.6 Host Visual Layer
-
-The host page also includes a canvas-based background visualizer.
-
-- It draws animated vertical bars with a purple-to-cyan gradient.
-- The amplitude is higher while a song is active.
-- This is purely presentational and does not affect playback.
-
-## 9. Participant Implementation Details
-
-### 9.1 Search Providers
-
-Search is implemented as a fallback chain.
-
-1. Try Piped instances.
-2. If all Piped attempts fail, try Invidious instances.
-
-The code uses a small list of public instances and returns the first successful result set.
-
-Each result is normalized into:
-
-- `youtube_id`
-- `title`
-- `thumbnail_url`
-- `author`
-
-### 9.2 Search UX
-
-Search input is debounced by 400 ms.
-
-- The clear button appears only when text is present.
-- Skeleton cards are shown while the search request is in flight.
-- Results render as tappable cards with thumbnails and title/author text.
-- An error toast appears if all search endpoints fail.
-
-### 9.3 Add Song Logic
-
-When a user taps a result card:
-
-1. The app checks whether an unplayed row already exists for that `youtube_id`.
-2. If one exists, it increments votes through the `increment_vote` RPC.
-3. If one does not exist, it inserts a new queue row with `votes: 1`.
-
-This means the same song becomes a single queue item instead of duplicate rows.
-
-### 9.4 Anti-Spam / Duplicate Vote Memory
-
-Participant-side anti-spam is implemented with `localStorage`.
-
-- The app stores voted queue row IDs in `votify_voted_ids`.
-- If the user already voted a row, the UI blocks another upvote.
-- If the user has not voted a row yet, the code can upvote it and then remember the ID.
-
-Important limitation: this is a client-side guard, not a security boundary. The database is still public by design.
-
-### 9.5 Queue Rendering
-
-The participant queue renders all unplayed songs sorted the same way as the host.
-
-- It shows the current playing song title in the mini now-playing area.
-- It keeps the queue badge updated with the current number of unplayed songs.
-- It uses FLIP animation for reordering.
-- It highlights vote state on each queue card button.
-
-### 9.6 Presence Sync
-
-Participants subscribe to the same `votify-sync` channel as the host.
-
-- They listen for postgres changes on `queue`.
-- They inspect channel presence state for a presence entry with `isHost`.
-- If host presence is available, they use `currentSong` to populate the now-playing title.
-- If host presence is unavailable, they fall back to the first unplayed queue item.
-
-## 10. Shared UI And Styling System
-
-The styling strategy is shared and fairly consistent across the app.
-
-### 10.1 Global Tokens
-
-`css/global.css` defines the design system:
-
-- dark background palette,
-- purple and cyan accents,
-- glassmorphism surfaces,
-- spacing scale,
-- radius scale,
-- shadows,
-- timing/easing tokens,
-- utility classes such as `glass-card`, `btn-primary`, `btn-secondary`, and `gradient-text`.
-
-### 10.2 Host Styling
-
-`css/host.css` defines:
-
-- three-column desktop layout,
-- QR section,
-- stats cards,
-- now-playing panel,
-- player container,
-- idle state,
-- queue sidebar,
-- toast and modal integration,
-- responsive behavior for the host screen.
-
-### 10.3 Participant Styling
-
-`css/participant.css` defines:
-
-- sticky mobile header,
-- sticky search bar,
-- search results cards,
-- skeleton loaders,
-- mini now-playing strip,
-- vote-able queue cards,
-- large touch targets.
-
-## 11. Landing Page
-
-`index.html` is a lightweight marketing/entry page.
-
-- It introduces the app.
-- It points users directly to the participant screen.
-- It uses the shared global design tokens and a few inline landing-specific styles.
-
-## 12. Build And Dev Setup
-
-### 12.1 Development
-
-- `npm install`
-- `npm run dev`
-
-Vite runs the app on port 3000 and opens the browser automatically.
-
-### 12.2 Production Build
-
-- `npm run build`
-
-The build outputs a static site suitable for hosting on Netlify or similar platforms.
-
-### 12.3 Vite Inputs
-
-`vite.config.js` explicitly declares the three HTML entry files so Vite builds them all:
-
-- `index.html`
-- `host_6969.html`
-- `participant.html`
-
-## 13. Deployment Notes
-
-The repo includes `netlify.toml` with a build command and publish directory.
-
-Current redirect behavior:
-
-- visitor requests are redirected to `/participant.html`.
-
-This makes the participant screen the default public experience on deployed builds.
-
-## 14. Important Behavior Notes
-
-- The host screen is protected by a PIN, but the PIN is a convenience gate, not strong security.
-- The queue is intentionally public because the use case is a live event.
-- Song search is done through third-party public endpoints, so availability can vary.
-- Realtime is essential for the experience; if Supabase is disconnected, both screens show reconnect behavior.
-- The app currently assumes a flat queue model with one playing song and one ordered list of unplayed songs.
-
-## 15. Maintenance Rules For Future Changes
-
-When making a major change, update this file in the same change set if the change affects any of the following:
-
-- HTML entry points or routes.
-- Supabase schema, functions, policies, or realtime channels.
-- Search providers or playback behavior.
-- Authentication or host access behavior.
-- Environment variables.
-- Deployment or build configuration.
-- File structure or ownership of major features.
-
-When documenting a new feature, include:
-
-- what user flow it changes,
-- what file owns the logic,
-- what backend data it touches,
-- how it syncs in realtime,
-- and any failure mode or fallback behavior.
-
-## 16. Current High-Level Data Flow
-
-```text
-Participant search input
-  -> Piped / Invidious search
-  -> result card tap
-  -> Supabase queue insert or increment_vote RPC
-  -> realtime postgres change
-  -> host queue refresh + participant queue refresh
-  -> host playback advances when current song ends
+```
+VITE_SUPABASE_URL       — Supabase project URL
+VITE_SUPABASE_ANON_KEY  — Supabase public API key
+VITE_DEPLOYED_URL       — Base URL for QR code generation
 ```
 
-## 17. Quick Reference Snippets
+---
 
-### 17.1 Environment Variables
+## 9. SQL Patches Required in Supabase Dashboard
 
-```text
-VITE_SUPABASE_URL
-VITE_SUPABASE_ANON_KEY
-VITE_HOST_PIN
-VITE_DEPLOYED_URL
+Run these when deploying schema changes. The `.sql` file is the source of truth but changes must be applied manually via Supabase SQL Editor. The realtime publication block is guarded because Supabase errors if a table is already a publication member.
+
+```sql
+-- 1. Add display_name to room_bans
+ALTER TABLE room_bans ADD COLUMN IF NOT EXISTS display_name TEXT;
+
+-- 2. Allow reading paused rooms publicly
+DROP POLICY IF EXISTS "active rooms are publicly readable" ON rooms;
+CREATE POLICY "active rooms are publicly readable"
+  ON rooms FOR SELECT USING (status IN ('active', 'paused') OR auth.uid() = host_id);
+
+-- 3. Allow host to DELETE their rooms
+DROP POLICY IF EXISTS "host can delete their room" ON rooms;
+CREATE POLICY "host can delete their room"
+  ON rooms FOR DELETE USING (auth.uid() = host_id);
+
+-- 4. Host can update queue even when paused
+DROP POLICY IF EXISTS "host can update any queue row" ON queue;
+CREATE POLICY "host can update any queue row"
+  ON queue FOR UPDATE
+  USING (EXISTS (
+    SELECT 1 FROM rooms WHERE rooms.id = queue.room_id AND rooms.host_id = auth.uid()
+  ));
+
+-- 5. Realtime for required tables
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'queue'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.queue;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'rooms'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'skip_votes'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.skip_votes;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'room_participants'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.room_participants;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'room_bans'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.room_bans;
+  END IF;
+END $$;
+
+-- 6. Allow paused as a persisted room status
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_status_check;
+ALTER TABLE rooms ADD CONSTRAINT rooms_status_check
+  CHECK (status IN ('active', 'paused', 'ended'));
+
+-- 7. Prevent creating another room while one is active
+DROP INDEX IF EXISTS one_active_room_per_host;
+CREATE UNIQUE INDEX one_active_room_per_host
+  ON rooms(host_id) WHERE status = 'active';
 ```
 
-### 17.2 Core Database Shape
+---
 
-```text
-queue:
-  id UUID primary key
-  youtube_id text
-  title text
-  thumbnail_url text
-  votes integer
-  played boolean
-  created_at timestamptz
-```
+## 10. Maintenance Rules
 
-### 17.3 Core Client Modules
-
-```text
-js/supabase-config.js
-js/host.js
-js/participant.js
-```
-
-## 18. Practical Notes For Another AI
-
-If another AI is picking up this repo, the most important facts are:
-
-- The queue lives in Supabase, not in local state.
-- The host is the playback authority.
-- Participants can only search, add, and vote.
-- Both screens depend on the same realtime table.
-- The app is intentionally simple: one table, one RPC, two UI modes.
+1. **Schema changes** → Always update `supabase-schema-v2.sql` AND the SQL Patches section above.
+2. **New realtime interactions** → Add a Broadcast fallback alongside Postgres Changes.
+3. **Cache busting** → Increment `?v=X` in script tags in HTML files after JS logic changes.
+4. **Never use `const` for shared channel variables** — must be module-level `let`.

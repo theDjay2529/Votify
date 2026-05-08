@@ -1,77 +1,155 @@
 /* ============================================================
-   🎧 VOTIFY — Host Screen Logic
-   YouTube IFrame Player + Supabase Realtime + QR Code
+   🎧 VOTIFY — Host Screen Logic (V2)
+   YouTube Player + Room Scoping + Presence Broadcasting
    ============================================================ */
 
 import { supabase } from './supabase-config.js';
+import { requireAuth, getProfile } from './auth.js';
+import { getRoomForHost, endRoom, pauseRoom, activateRoom, getRoomParticipants, kickParticipant, getBannedParticipants, unbanParticipant } from './rooms.js';
 
 // ── State ──
 let player = null;
 let currentSong = null;
 let isPlayerReady = false;
 let queue = [];
+let roomCode = null;
+let roomData = null;
+let syncChannel = null;
+let presenceCount = 0;
+let isPinVisible = false;
 
 // ── DOM Elements ──
-const nowPlayingSection = document.getElementById('now-playing-section');
-const nowPlayingTitle = document.getElementById('now-playing-title');
-const idleState = document.getElementById('idle-state');
-const queueList = document.getElementById('queue-list');
-const queueEmpty = document.getElementById('queue-empty');
-const queueCount = document.getElementById('queue-count');
-const statQueue = document.getElementById('stat-queue');
-const statPlayed = document.getElementById('stat-played');
-const toastContainer = document.getElementById('toast-container');
-const reconnectBanner = document.getElementById('reconnect-banner');
+const nowPlayingSection  = document.getElementById('now-playing-section');
+const nowPlayingTitle    = document.getElementById('now-playing-title');
+const idleState          = document.getElementById('idle-state');
+const queueList          = document.getElementById('queue-list');
+const queueEmpty         = document.getElementById('queue-empty');
+const statQueue          = document.getElementById('stat-queue');
+const statPlayed         = document.getElementById('stat-played');
+const toastContainer     = document.getElementById('toast-container');
+const reconnectBanner    = document.getElementById('reconnect-banner');
+const pBadge             = document.getElementById('p-badge');
+const participantsList   = document.getElementById('participants-list');
 
-// ── Toast System ──
-function showToast(message, type = 'info') {
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-  toastContainer.appendChild(toast);
+// ── Initialization ───────────────────────────────────────────
+async function init() {
+  // 1. Auth Guard
+  const session = await requireAuth();
+  if (!session) return;
 
-  setTimeout(() => {
-    toast.classList.add('toast-exit');
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
+  // 2. Room Context
+  const params = new URLSearchParams(window.location.search);
+  roomCode = params.get('room')?.toUpperCase();
+
+  if (!roomCode) {
+    window.location.replace('home.html');
+    return;
+  }
+
+  roomData = await getRoomForHost(roomCode);
+  if (!roomData) {
+    showToast('Room not found or you are not the host.', 'error');
+    setTimeout(() => window.location.replace('home.html'), 2000);
+    return;
+  }
+
+  // 3. Update UI with Room Data
+  document.getElementById('display-room-name').textContent = roomData.name;
+  document.getElementById('display-room-code').textContent = roomData.code;
+  
+  if (roomData.pin) {
+    document.getElementById('pin-reveal-row')?.classList.remove('hidden');
+    document.getElementById('display-room-pin').textContent = '••••';
+  }
+
+  // 4. QR Code
+  generateQRCode();
+
+  // 5. YouTube Player
+  initPlayer();
+
+  // 6. Initial Data
+  await refreshQueue();
+  await refreshPlayedCount();
+
+  // 7. If room was paused, reactivate it before publishing host presence.
+  if (roomData.status === 'paused') {
+    await activateRoom(roomData.id);
+    roomData.status = 'active';
+    showToast('Room reactivated! Participants can now join again. 🎧', 'success');
+  } else {
+    showToast('Host console active 🎧', 'success');
+  }
+
+  // 8. Realtime & Presence
+  setupRealtime();
+
+  // 9. Visualizer
+  initVisualizer();
 }
 
-// ── QR Code Generation ──
-// Deployed URL is loaded from VITE_DEPLOYED_URL in .env
-// If empty, falls back to current window location (works for localhost on same Wi-Fi).
-const DEPLOYED_URL = import.meta.env.VITE_DEPLOYED_URL || '';
-
+// ── QR Code ──────────────────────────────────────────────────
 function generateQRCode() {
   const qrContainer = document.getElementById('qr-code');
-  const qrUrlDisplay = document.getElementById('qr-url');
+  const qrUrlEl     = document.getElementById('qr-url');
+  const baseUrl     = import.meta.env.VITE_DEPLOYED_URL || window.location.origin;
+  const joinUrl     = `${baseUrl}/join.html?room=${roomCode}`;
+  const displayUrl  = joinUrl.replace(/^https?:\/\//, '');
 
-  // Use deployed URL if set, otherwise fall back to current origin
-  const baseUrl = DEPLOYED_URL || window.location.origin;
-  const participantUrl = `${baseUrl}/participant.html`;
-
-  qrUrlDisplay.textContent = participantUrl;
-
-  // Clear any existing QR code
-  qrContainer.innerHTML = '';
-
-  // Generate with qrcode.js
-  if (typeof QRCode !== 'undefined') {
-    new QRCode(qrContainer, {
-      text: participantUrl,
-      width: 180,
-      height: 180,
-      colorDark: '#ffffff',
-      colorLight: 'transparent',
-      correctLevel: QRCode.CorrectLevel.M,
+  // ── URL Display + Click-to-Copy ──
+  qrUrlEl.textContent = displayUrl;
+  qrUrlEl.style.cursor = 'pointer';
+  qrUrlEl.title = 'Click to copy link';
+  qrUrlEl.addEventListener('click', () => {
+    navigator.clipboard.writeText(joinUrl).then(() => {
+      const prev = qrUrlEl.textContent;
+      qrUrlEl.textContent = '✅ Copied!';
+      qrUrlEl.style.color = '#86efac';
+      setTimeout(() => {
+        qrUrlEl.textContent = prev;
+        qrUrlEl.style.color = '';
+      }, 2000);
     });
-  } else {
-    qrContainer.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;">QR library not loaded</p>';
-  }
+  });
+
+  // ── QR Code — use Google Charts API (instant, no library dependency) ──
+  qrContainer.innerHTML = '';
+  const size = 180;
+  const img = document.createElement('img');
+  img.width  = size;
+  img.height = size;
+  img.alt    = 'QR Code';
+  img.style.cssText = `
+    border-radius: 8px;
+    display: block;
+    background: #fff;
+    padding: 8px;
+    box-sizing: border-box;
+  `;
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(joinUrl)}&bgcolor=ffffff&color=0a0a0f&margin=1`;
+  img.onerror = () => {
+    // Fallback to QRCode.js library if the API fails (offline scenarios)
+    img.remove();
+    if (typeof QRCode !== 'undefined') {
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'background:#fff;padding:8px;border-radius:8px;display:inline-block;';
+      qrContainer.appendChild(wrapper);
+      new QRCode(wrapper, {
+        text: joinUrl,
+        width: size - 16,
+        height: size - 16,
+        colorDark: '#0a0a0f',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+    } else {
+      qrContainer.innerHTML = `<p style="color:var(--text-muted);font-size:0.75rem;padding:8px;text-align:center;">QR unavailable</p>`;
+    }
+  };
+  qrContainer.appendChild(img);
 }
 
-// ── YouTube IFrame Player ──
-// We use window.__ytReady (a promise set in host.html) to handle the
-// race condition between the YouTube API and ES module loading.
+// ── YouTube IFrame Player ────────────────────────────────────
 async function initPlayer() {
   await window.__ytReady;
   player = new YT.Player('yt-player', {
@@ -83,7 +161,7 @@ async function initPlayer() {
       modestbranding: 1,
       rel: 0,
       fs: 1,
-      iv_load_policy: 3, // hide annotations
+      iv_load_policy: 3,
     },
     events: {
       onReady: onPlayerReady,
@@ -95,34 +173,33 @@ async function initPlayer() {
 
 function onPlayerReady() {
   isPlayerReady = true;
-  console.log('[Votify] YouTube player ready');
   playNextSong();
 }
 
 function onPlayerStateChange(event) {
   if (event.data === YT.PlayerState.ENDED) {
-    console.log('[Votify] Song ended, marking as played...');
     markCurrentAsPlayed();
   }
 }
 
 function onPlayerError(event) {
   console.error('[Votify] Player error:', event.data);
-  showToast('Playback error — skipping to next song...', 'error');
-  // Skip errored song
+  showToast('Playback error — skipping...', 'error');
   markCurrentAsPlayed();
 }
 
-// ── Playback Logic ──
+// ── Playback Logic ───────────────────────────────────────────
 async function playNextSong() {
   if (!isPlayerReady) return;
 
   try {
+    // Fetch top song by Net Score (upvotes - downvotes)
     const { data, error } = await supabase
       .from('queue')
       .select('*')
+      .eq('room_id', roomData.id)
       .eq('played', false)
-      .order('votes', { ascending: false })
+      .order('upvotes', { ascending: false }) // We'll add net_score column in Phase 2 or use raw logic
       .order('created_at', { ascending: true })
       .limit(1);
 
@@ -131,436 +208,472 @@ async function playNextSong() {
     if (data && data.length > 0) {
       const song = data[0];
       currentSong = song;
-      broadcastState();
 
-      // Show player, hide idle
+      // UI
       nowPlayingSection.classList.add('active');
       idleState.classList.add('hidden');
-
-      // Update title
       nowPlayingTitle.textContent = song.title;
 
-      // Load and play
       player.loadVideoById(song.youtube_id);
-
-      console.log(`[Votify] Now playing: ${song.title}`);
-     
-       // Update queue display to filter out now-playing song
-       await refreshQueueDisplay();
+      // Update Presence & Signaling after local state is fully committed.
+      await broadcastState();
+      await refreshQueue();
     } else {
-      // No songs — show idle state
       currentSong = null;
-      broadcastState();
-      
       nowPlayingSection.classList.remove('active');
       idleState.classList.remove('hidden');
-
-      if (player && typeof player.stopVideo === 'function') {
-        player.stopVideo();
-      }
-     
-       // Update queue display since no song is playing
-       await refreshQueueDisplay();
+      if (player?.stopVideo) player.stopVideo();
+      await broadcastState();
+      await refreshQueue();
     }
   } catch (err) {
-    console.error('[Votify] Error fetching next song:', err);
     showToast('Failed to load next song', 'error');
   }
 }
 
 async function markCurrentAsPlayed() {
   if (!currentSong) return;
-
   try {
-    const { error } = await supabase
-      .from('queue')
-      .update({ played: true })
-      .eq('id', currentSong.id);
-
-    if (error) throw error;
-
+    await supabase.from('queue').update({ played: true }).eq('id', currentSong.id);
     currentSong = null;
-    // Small delay before playing next
-    setTimeout(() => playNextSong(), 1000);
+    await refreshPlayedCount();
+    setTimeout(playNextSong, 1000);
   } catch (err) {
-    console.error('[Votify] Error marking song as played:', err);
     showToast('Failed to update queue', 'error');
   }
 }
 
-// ── Queue Display ──
-async function refreshQueueDisplay() {
+// ── Queue Display ────────────────────────────────────────────
+async function refreshQueue() {
   try {
-    // Fetch unplayed songs sorted by votes
-    const { data: unplayed, error: err1 } = await supabase
+    const { data, error } = await supabase
       .from('queue')
       .select('*')
+      .eq('room_id', roomData.id)
       .eq('played', false)
-      .order('votes', { ascending: false })
+      .order('upvotes', { ascending: false })
       .order('created_at', { ascending: true });
 
-    if (err1) throw err1;
-
-    // Fetch played count
-    const { count: playedCount, error: err2 } = await supabase
-      .from('queue')
-      .select('*', { count: 'exact', head: true })
-      .eq('played', true);
-
-    if (err2) throw err2;
-
-    queue = unplayed || [];
-
-    // Update stats
-    statQueue.textContent = queue.length;
-    statPlayed.textContent = playedCount || 0;
-    queueCount.textContent = queue.length;
-
-    // Filter out currently playing song for the "Up Next" list
-    const upNext = currentSong
-      ? queue.filter((s) => s.id !== currentSong.id)
-      : queue;
-
-    // Render queue with FLIP animation
-    if (upNext.length === 0) {
-      queueEmpty.classList.remove('hidden');
-      Array.from(queueList.children).forEach(c => {
-        if (c.id !== 'queue-empty') c.remove();
-      });
-    } else {
-      queueEmpty.classList.add('hidden');
-
-      // 1. Record current positions (First)
-      const oldRects = new Map();
-      Array.from(queueList.children).forEach(child => {
-        if (child.dataset.id) {
-          oldRects.set(child.dataset.id, child.getBoundingClientRect());
-        }
-      });
-
-      // 2. Remove deleted elements
-      const newIds = new Set(upNext.map(s => s.id));
-      Array.from(queueList.children).forEach(child => {
-        if (child.dataset.id && !newIds.has(child.dataset.id)) {
-          child.remove();
-        }
-      });
-
-      // 3. Update existing or Add new (Last)
-      upNext.forEach((song, index) => {
-        const rankClass = index < 3 ? `top-${index + 1}` : '';
-        let card = queueList.querySelector(`.queue-song[data-id="${song.id}"]`);
-        
-        if (!card) {
-          card = document.createElement('div');
-          card.className = 'queue-song';
-          card.dataset.id = song.id;
-          
-          card.innerHTML = `
-            <span class="queue-song-rank ${rankClass}">${index + 1}</span>
-            <img class="queue-song-thumb" src="${song.thumbnail_url || ''}" alt="" onerror="this.style.display='none'" />
-            <div class="queue-song-info">
-              <div class="queue-song-title" title="${song.title}">${song.title}</div>
-            </div>
-            <div class="queue-song-votes">
-              <span class="arrow">▲</span> <span class="vote-count">${song.votes}</span>
-            </div>
-            <button class="btn-delete-track" data-id="${song.id}" title="Remove track">✕</button>
-          `;
-          
-          // Attach delete listener
-          const delBtn = card.querySelector('.btn-delete-track');
-          delBtn.addEventListener('click', async (e) => {
-            const isConfirmed = await showConfirmDialog(
-              'Remove Track',
-              'Remove this track from the queue?'
-            );
-            if (isConfirmed) {
-              try {
-                await supabase.from('queue').update({ played: true }).eq('id', song.id);
-                refreshQueueDisplay();
-              } catch (err) {
-                console.error('[Votify] Error deleting track:', err);
-              }
-            }
-          });
-          
-          queueList.appendChild(card);
-        } else {
-          // Update contents
-          card.querySelector('.queue-song-rank').className = `queue-song-rank ${rankClass}`;
-          card.querySelector('.queue-song-rank').textContent = index + 1;
-          card.querySelector('.vote-count').textContent = song.votes;
-          
-          // Re-append to DOM to fix ordering
-          queueList.appendChild(card);
-        }
-      });
-
-      // 4. Invert & Play (FLIP)
-      Array.from(queueList.children).forEach(child => {
-        const id = child.dataset.id;
-        if (!id) return;
-        const oldRect = oldRects.get(id);
-        const newRect = child.getBoundingClientRect();
-        
-        if (oldRect) {
-          const deltaY = oldRect.top - newRect.top;
-          if (deltaY !== 0) {
-            // Invert
-            child.style.transform = `translateY(${deltaY}px)`;
-            child.style.transition = 'none';
-            
-            // Play
-            requestAnimationFrame(() => {
-              child.style.transform = '';
-              child.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
-            });
-          }
-        }
-      });
-    }
+    if (error) throw error;
+    queue = data || [];
+    queue.sort((a, b) => {
+      const netA = (a.upvotes || 0) - (a.downvotes || 0);
+      const netB = (b.upvotes || 0) - (b.downvotes || 0);
+      if (netB !== netA) return netB - netA;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+    renderQueueList();
   } catch (err) {
-    console.error('[Votify] Error refreshing queue:', err);
+    console.error(err);
   }
 }
 
-// ── Supabase Realtime ──
-let syncChannel;
+function renderQueueList() {
+  const upNext = currentSong ? queue.filter(s => s.id !== currentSong.id) : queue;
+  if (statQueue) statQueue.textContent = upNext.length;
 
-function broadcastState() {
-  if (syncChannel) {
-    syncChannel.track({ isHost: true, currentSong }).catch(err => console.error('[Votify] Error tracking presence:', err));
+  if (upNext.length === 0) {
+    queueEmpty.classList.remove('hidden');
+    queueList.querySelectorAll('.queue-song').forEach(el => el.remove());
+    return;
   }
-}
 
-function setupRealtime() {
-  syncChannel = supabase.channel('votify-sync');
+  queueEmpty.classList.add('hidden');
 
-  syncChannel
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'queue',
-      },
-      (payload) => {
-        console.log('[Votify] Realtime update:', payload.eventType);
-        refreshQueueDisplay();
+  queueList.innerHTML = upNext.map((song, i) => {
+    const score = (song.upvotes || 0) - (song.downvotes || 0);
+    const scoreClass = score > 0 ? 'pos' : score < 0 ? 'neg' : 'neutral';
+    const rankClass = i === 0 ? 'top-1' : i === 1 ? 'top-2' : i === 2 ? 'top-3' : '';
+    return `
+      <div class="queue-song glass-card" data-id="${song.id}">
+        <span class="queue-song-rank ${rankClass}">${i + 1}</span>
+        <img class="queue-song-thumb" src="${song.thumbnail_url}" alt="" loading="lazy" />
+        <div class="queue-song-info">
+          <div class="queue-song-title">${escapeHtml(song.title)}</div>
+        </div>
+        <div class="queue-song-score ${scoreClass}">${score > 0 ? '+' : ''}${score}</div>
+        <button class="btn-delete-track" data-id="${song.id}" title="Remove">✕</button>
+      </div>
+    `;
+  }).join('');
 
-        // If no song is playing and a new song was inserted, play it
-        if (!currentSong && payload.eventType === 'INSERT') {
-          playNextSong();
-        }
-      }
-    )
-    .subscribe(async (status) => {
-      console.log('[Votify] Realtime status:', status);
-      if (status === 'SUBSCRIBED') {
-        reconnectBanner.classList.remove('visible');
-        broadcastState();
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        reconnectBanner.classList.add('visible');
-        showToast('Connection lost — attempting to reconnect...', 'error');
-        setTimeout(() => {
-          syncChannel.subscribe();
-        }, 3000);
+  queueList.querySelectorAll('.btn-delete-track').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (await showConfirm('Remove Song', 'Remove this song from the queue?')) {
+        await supabase.from('queue').update({ played: true }).eq('id', btn.dataset.id);
       }
     });
-}
-
-// ── PIN Gate ──
-// PIN is loaded from VITE_HOST_PIN in .env — never hardcoded in source.
-const HOST_PIN = import.meta.env.VITE_HOST_PIN || '00000';
-
-const pinGate = document.getElementById('pin-gate');
-const pinInput = document.getElementById('pin-input');
-const pinSubmit = document.getElementById('pin-submit');
-const pinError = document.getElementById('pin-error');
-const hostLayout = document.getElementById('host-layout');
-
-function checkPinAuth() {
-  return sessionStorage.getItem('votify_host_auth') === 'true';
-}
-
-function handlePinSubmit() {
-  const entered = pinInput.value.trim();
-  if (entered === HOST_PIN) {
-    sessionStorage.setItem('votify_host_auth', 'true');
-    pinGate.classList.add('hidden');
-    hostLayout.style.display = '';
-    init();
-  } else {
-    pinInput.classList.add('error');
-    pinError.classList.remove('hidden');
-    pinInput.value = '';
-    setTimeout(() => {
-      pinInput.classList.remove('error');
-    }, 400);
-    pinInput.focus();
-  }
-}
-
-pinSubmit.addEventListener('click', handlePinSubmit);
-pinInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') handlePinSubmit();
-  // Hide error when typing again
-  pinError.classList.add('hidden');
-});
-
-// ── Custom Confirm Dialog ──
-function showConfirmDialog(title, message) {
-  return new Promise((resolve) => {
-    const modal = document.getElementById('confirm-modal');
-    const titleEl = document.getElementById('modal-title');
-    const messageEl = document.getElementById('modal-message');
-    const btnCancel = document.getElementById('modal-cancel');
-    const btnConfirm = document.getElementById('modal-confirm');
-
-    titleEl.textContent = title;
-    messageEl.textContent = message;
-    modal.classList.add('visible');
-
-    const cleanup = () => {
-      modal.classList.remove('visible');
-      btnCancel.removeEventListener('click', onCancel);
-      btnConfirm.removeEventListener('click', onConfirm);
-    };
-
-    const onCancel = () => {
-      cleanup();
-      resolve(false);
-    };
-
-    const onConfirm = () => {
-      cleanup();
-      resolve(true);
-    };
-
-    btnCancel.addEventListener('click', onCancel);
-    btnConfirm.addEventListener('click', onConfirm);
   });
 }
 
-// ── Clear Queue ──
-document.getElementById('btn-clear-queue')?.addEventListener('click', async () => {
-  const isConfirmed = await showConfirmDialog(
-    'Clear Queue',
-    'Are you sure you want to completely clear the upcoming queue?'
-  );
-  if (isConfirmed) {
-    try {
-      await supabase.from('queue').update({ played: true }).eq('played', false);
-      showToast('Queue cleared', 'success');
-      refreshQueueDisplay();
-    } catch (err) {
-      console.error('[Votify] Error clearing queue:', err);
-      showToast('Failed to clear queue', 'error');
+async function refreshPlayedCount() {
+  const { count } = await supabase
+    .from('queue')
+    .select('*', { count: 'exact', head: true })
+    .eq('room_id', roomData.id)
+    .eq('played', true);
+  if (statPlayed) statPlayed.textContent = count || 0;
+  // If history tab is active, refresh it too
+  if (document.getElementById('history-list') && !document.getElementById('history-list').classList.contains('hidden')) {
+    await refreshHistory();
+  }
+}
+
+async function refreshHistory() {
+  const historyList = document.getElementById('history-list');
+  if (!historyList) return;
+  const { data } = await supabase
+    .from('queue')
+    .select('*')
+    .eq('room_id', roomData.id)
+    .eq('played', true)
+    .order('created_at', { ascending: false });
+  const songs = data || [];
+  if (!songs.length) {
+    historyList.innerHTML = '<div class="queue-empty"><p>No songs played yet</p></div>';
+    return;
+  }
+  historyList.innerHTML = songs.map((song, i) => `
+    <div class="queue-song glass-card" style="opacity:0.65;">
+      <span class="queue-song-rank" style="color:var(--text-muted);">${i + 1}</span>
+      <img class="queue-song-thumb" src="${song.thumbnail_url}" alt="" loading="lazy" />
+      <div class="queue-song-info">
+        <div class="queue-song-title">${escapeHtml(song.title)}</div>
+        <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">Added by ${escapeHtml(song.added_by || 'Unknown')}</div>
+      </div>
+      <span style="font-size:0.75rem;color:var(--text-muted);">Played</span>
+    </div>
+  `).join('');
+}
+
+// ── Realtime & Presence ──────────────────────────────────────
+function setupRealtime() {
+  syncChannel = supabase.channel(`room-${roomCode}`);
+
+  syncChannel
+    .on('postgres_changes', { 
+      event: '*', 
+      schema: 'public', 
+      table: 'queue', 
+      filter: `room_id=eq.${roomData.id}` 
+    }, (payload) => {
+      refreshQueue();
+      if (!currentSong && payload.eventType === 'INSERT') playNextSong();
+    })
+    .on('presence', { event: 'sync' }, () => {
+      const state = syncChannel.presenceState();
+      presenceCount = Object.keys(state).length;
+      if (pBadge) pBadge.textContent = presenceCount;
+      refreshParticipants();
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        reconnectBanner.classList.remove('visible');
+        await broadcastState();
+        await broadcastRoomStatus(roomData.status);
+      } else {
+        reconnectBanner.classList.add('visible');
+      }
+    });
+
+  // Fallback broadcast listener for skip votes
+  syncChannel.on('broadcast', { event: 'skip_update' }, async () => {
+    const { count } = await supabase
+      .from('skip_votes')
+      .select('*', { count: 'exact', head: true })
+      .eq('room_id', roomData.id)
+      .eq('queue_item_id', currentSong?.id);
+    
+    const threshold = Math.ceil(presenceCount / 2);
+    if (count >= threshold && currentSong) {
+      showToast('Skip threshold reached!', 'info');
+      markCurrentAsPlayed();
     }
-  }
-});
+  });
 
-// ── Skip Track ──
-document.getElementById('btn-skip-track')?.addEventListener('click', () => {
-  if (currentSong) {
-    showToast('Skipping track...', 'info');
-    markCurrentAsPlayed();
-  }
-});
+  // Skip Votes Listener
+  supabase
+    .channel(`skips-${roomData.id}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'skip_votes',
+      filter: `room_id=eq.${roomData.id}`
+    }, async () => {
+      const { count } = await supabase
+        .from('skip_votes')
+        .select('*', { count: 'exact', head: true })
+        .eq('room_id', roomData.id)
+        .eq('queue_item_id', currentSong?.id);
+      
+      const threshold = Math.ceil(presenceCount / 2);
+      if (count >= threshold && currentSong) {
+        showToast('Skip threshold reached! ⏭️', 'info');
+        markCurrentAsPlayed();
+      }
+    })
+    .subscribe();
+}
 
-// ── Privacy Blur ──
-let isPlayerBlurred = false;
-document.getElementById('btn-blur-player')?.addEventListener('click', (e) => {
-  isPlayerBlurred = !isPlayerBlurred;
-  const overlay = document.getElementById('player-blur-overlay');
-  const btn = e.currentTarget;
+async function broadcastState() {
+  if (syncChannel) {
+    // Presence: persistent state for new joiners
+    await syncChannel.track({
+      isHost: true,
+      currentSong,
+      roomStatus: roomData.status
+    });
+    // Broadcast: instant delivery for active participants
+    syncChannel.send({
+      type: 'broadcast',
+      event: 'now_playing',
+      payload: { currentSong }
+    });
+  }
+}
+
+async function broadcastRoomStatus(status) {
+  if (!syncChannel) return;
+  await syncChannel.send({
+    type: 'broadcast',
+    event: 'room_status_update',
+    payload: { status }
+  });
+}
+
+// ── Participants ─────────────────────────────────────────────
+async function refreshParticipants() {
+  const list = await getRoomParticipants(roomData.id);
+  const banned = await getBannedParticipants(roomData.id);
   
-  if (isPlayerBlurred) {
-    overlay.classList.add('active');
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
-    showToast('Privacy blur enabled', 'info');
-  } else {
-    overlay.classList.remove('active');
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
-    showToast('Privacy blur disabled', 'info');
+  // Prepend Host manually
+  const { data: { session } } = await supabase.auth.getSession();
+  const profile = await getProfile(session?.user?.id);
+  const hostName = profile?.username || session?.user?.email?.split('@')[0] || 'Host';
+
+  // Active participants tab
+  const activeTabContent = `
+    <div class="p-row">
+      <div class="p-row-info">
+        <span class="p-row-name">${escapeHtml(hostName)} <span style="color:var(--primary); font-size:0.8rem; margin-left:4px;">(Host)</span></span>
+        <span class="p-row-meta">Authenticated</span>
+      </div>
+    </div>
+  ` + list.map(p => `
+    <div class="p-row">
+      <div class="p-row-info">
+        <span class="p-row-name">${escapeHtml(p.display_name || 'Guest')}</span>
+        <span class="p-row-meta">${p.is_guest ? 'Guest' : 'Authenticated'}</span>
+      </div>
+      <button class="btn-kick" data-token="${p.participant_token}" data-name="${escapeHtml(p.display_name || 'Guest')}">Kick</button>
+    </div>
+  `).join('');
+
+  // Banned participants tab
+  const bannedTabContent = banned.length === 0
+    ? '<p style="color:var(--text-muted);text-align:center;padding:16px;font-size:0.85rem;">No banned users</p>'
+    : banned.map(b => `
+      <div class="p-row">
+        <div class="p-row-info">
+          <span class="p-row-name" style="color:#f87171;">🚫 ${escapeHtml(b.display_name || 'Unknown participant')}</span>
+          <span class="p-row-meta">Banned ${new Date(b.banned_at).toLocaleDateString()}</span>
+        </div>
+        <button class="btn-unban" data-token="${b.participant_token}">Unban</button>
+      </div>
+    `).join('');
+
+  participantsList.innerHTML = `
+    <div class="drawer-tabs">
+      <button class="drawer-tab active" id="dtab-active">Active (${list.length + 1})</button>
+      <button class="drawer-tab" id="dtab-banned">Banned (${banned.length})</button>
+    </div>
+    <div id="dpanel-active" class="drawer-panel">${activeTabContent}</div>
+    <div id="dpanel-banned" class="drawer-panel hidden">${bannedTabContent}</div>
+  `;
+
+  // Drawer tab switching
+  document.getElementById('dtab-active')?.addEventListener('click', () => {
+    document.getElementById('dtab-active').classList.add('active');
+    document.getElementById('dtab-banned').classList.remove('active');
+    document.getElementById('dpanel-active').classList.remove('hidden');
+    document.getElementById('dpanel-banned').classList.add('hidden');
+  });
+  document.getElementById('dtab-banned')?.addEventListener('click', () => {
+    document.getElementById('dtab-banned').classList.add('active');
+    document.getElementById('dtab-active').classList.remove('active');
+    document.getElementById('dpanel-banned').classList.remove('hidden');
+    document.getElementById('dpanel-active').classList.add('hidden');
+  });
+
+  participantsList.querySelectorAll('.btn-kick').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const nameToKick = btn.dataset.name || btn.dataset.token;
+      if (await showConfirm('Kick Participant', `Kick "${nameToKick}" from the room?`)) {
+        await kickParticipant(roomData.id, btn.dataset.token, btn.dataset.name);
+        if (syncChannel) {
+          syncChannel.send({ type: 'broadcast', event: 'kick', payload: { participant_token: btn.dataset.token } });
+        }
+        showToast('Participant kicked.', 'info');
+        refreshParticipants();
+      }
+    });
+  });
+
+  participantsList.querySelectorAll('.btn-unban').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await unbanParticipant(roomData.id, btn.dataset.token);
+      showToast('Participant unbanned.', 'success');
+      refreshParticipants();
+    });
+  });
+}
+
+// ── UI Events ────────────────────────────────────────────────
+document.getElementById('btn-skip-track').addEventListener('click', () => {
+  if (currentSong) markCurrentAsPlayed();
+});
+
+document.getElementById('btn-clear-queue').addEventListener('click', async () => {
+  if (await showConfirm('Clear Queue', 'Clear all upcoming songs?')) {
+    await supabase.from('queue').update({ played: true }).eq('room_id', roomData.id).eq('played', false);
+    showToast('Queue cleared', 'info');
   }
 });
 
-// ── Visualizer Background ──
+// Queue / History tab switching
+document.getElementById('tab-queue')?.addEventListener('click', () => {
+  document.getElementById('tab-queue').classList.add('active');
+  document.getElementById('tab-history').classList.remove('active');
+  document.getElementById('queue-list').classList.remove('hidden');
+  document.getElementById('history-list').classList.add('hidden');
+});
+
+document.getElementById('tab-history')?.addEventListener('click', async () => {
+  document.getElementById('tab-history').classList.add('active');
+  document.getElementById('tab-queue').classList.remove('active');
+  document.getElementById('queue-list').classList.add('hidden');
+  document.getElementById('history-list').classList.remove('hidden');
+  await refreshHistory();
+});
+
+
+document.getElementById('btn-toggle-pin')?.addEventListener('click', () => {
+  isPinVisible = !isPinVisible;
+  const pinEl     = document.getElementById('display-room-pin');
+  const eyeOpen   = document.getElementById('eye-open');
+  const eyeClosed = document.getElementById('eye-closed');
+  pinEl.textContent = isPinVisible ? roomData.pin : '••••';
+  eyeOpen.classList.toggle('hidden', isPinVisible);
+  eyeClosed.classList.toggle('hidden', !isPinVisible);
+});
+
+let isBlurred = false;
+document.getElementById('btn-blur-player')?.addEventListener('click', () => {
+  isBlurred = !isBlurred;
+  document.getElementById('player-blur-overlay').classList.toggle('active', isBlurred);
+  // No toast — silent toggle
+});
+
+document.getElementById('btn-end-session').addEventListener('click', async () => {
+  if (await showConfirm('Leave Session', 'Save and pause the room? Participants will see a hold message until you rejoin.')) {
+    try {
+      await pauseRoom(roomData.id);
+      roomData.status = 'paused';
+      // Broadcast after the DB write so participants and persisted state agree.
+      if (syncChannel) {
+        await syncChannel.send({ type: 'broadcast', event: 'room_status_update', payload: { status: 'paused' } });
+        await new Promise(r => setTimeout(r, 300)); // let broadcast propagate
+      }
+    } catch (err) {
+      console.error('[Votify] pauseRoom failed:', err);
+      showToast('Failed to pause the room. Please try again.', 'error');
+      return;
+    }
+    window.location.replace('home.html');
+  }
+});
+
+document.getElementById('btn-show-participants')?.addEventListener('click', () => {
+  document.getElementById('participants-drawer').classList.remove('hidden');
+  refreshParticipants();
+});
+
+document.getElementById('btn-close-drawer')?.addEventListener('click', () => {
+  document.getElementById('participants-drawer').classList.add('hidden');
+});
+
+// Click outside drawer to close
+document.getElementById('participants-drawer')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.add('hidden');
+  }
+});
+
+// ── Visualizer ───────────────────────────────────────────────
 function initVisualizer() {
   const canvas = document.getElementById('visualizer-canvas');
-  if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
+  const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
   window.addEventListener('resize', resize);
   resize();
 
   let time = 0;
   function draw() {
     requestAnimationFrame(draw);
-    time += 0.01; // Slower animation
-    
+    time += 0.01;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const bars = 50;
+    const bars = 60;
     const barWidth = canvas.width / bars;
     const midY = canvas.height / 2;
-    
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, 'rgba(168, 85, 247, 0.8)');
-    gradient.addColorStop(1, 'rgba(6, 182, 212, 0.8)');
-    
+    gradient.addColorStop(0, 'rgba(124, 58, 237, 0.4)');
+    gradient.addColorStop(1, 'rgba(6, 182, 212, 0.4)');
     ctx.fillStyle = gradient;
-    
     for (let i = 0; i < bars; i++) {
-      let noise = Math.sin(time + i * 0.2) * Math.cos(time * 0.6 + i * 0.1) * Math.sin(time * 0.3 - i * 0.05);
-      let amplitude = currentSong ? 300 : 50;
-      let height = Math.abs(noise) * amplitude + 20;
-      
-      ctx.fillRect(i * barWidth, midY - height, barWidth - 8, height * 2);
+      let noise = Math.sin(time + i * 0.2) * Math.cos(time * 0.5 + i * 0.1);
+      let amp = currentSong ? 200 : 40;
+      let h = Math.abs(noise) * amp + 10;
+      ctx.fillRect(i * barWidth, midY - h, barWidth - 4, h * 2);
     }
   }
   draw();
 }
 
-// ── Initialize ──
-async function init() {
-  console.log('[Votify] Host screen initializing...');
-
-  // Generate QR code
-  generateQRCode();
-
-  // Load initial queue
-  await refreshQueueDisplay();
-
-  // Set up realtime
-  setupRealtime();
-
-  // Initialize YouTube player (waits for API to be ready)
-  initPlayer();
-  
-  // Start visualizer background
-  initVisualizer();
-
-  showToast('Host mode active — waiting for songs! 🎧', 'success');
+// ── Confirm Modal ────────────────────────────────────────────
+function showConfirm(title, msg) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('confirm-modal');
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-message').textContent = msg;
+    modal.classList.add('visible');
+    const cleanup = (res) => {
+      modal.classList.remove('visible');
+      document.getElementById('modal-confirm').onclick = null;
+      document.getElementById('modal-cancel').onclick = null;
+      resolve(res);
+    };
+    document.getElementById('modal-confirm').onclick = () => cleanup(true);
+    document.getElementById('modal-cancel').onclick = () => cleanup(false);
+  });
 }
 
-// Start: check PIN first
-if (checkPinAuth()) {
-  // Already authenticated this session
-  pinGate.classList.add('hidden');
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+function showToast(msg, type = 'info') {
+  while (toastContainer.children.length >= 2) {
+    toastContainer.firstElementChild.remove();
   }
-} else {
-  // Show PIN gate, hide main layout
-  hostLayout.style.display = 'none';
-  pinInput.focus();
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  toastContainer.appendChild(t);
+  setTimeout(() => { t.classList.add('toast-exit'); setTimeout(() => t.remove(), 300); }, 3500);
 }
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Start
+init();

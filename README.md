@@ -1,45 +1,53 @@
 # 🎧 Votify
 
-> Real-time, crowd-controlled YouTube music queue for live events.
-> Attendees scan a QR code, search for songs, and vote their favorites to the top — all projected live on screen.
+> **A real-time, crowd-controlled music queue and synchronized listening platform.**
+> 
+> Votify lets anyone host a live music session where attendees can scan a QR code, search for songs, and vote their favorites to the top. From live event projector screens to synchronized "Listen Together" sessions, Votify brings people together through music.
 
 ---
 
-## 🚀 Quick Start
+## 🌟 Features & The V2 Vision
 
-### 1. Set Up Supabase (5 minutes)
+Votify is evolving from a single-session event tool into a **multi-room, cross-platform product**:
 
-1. Go to [supabase.com](https://supabase.com) and create a free account
-2. Click **"New Project"** — give it any name (e.g., `votify`), set a password, choose a region
-3. Wait for the project to finish provisioning (~1 minute)
+- **Multi-Room Architecture**: Hosts can authenticate and create their own isolated rooms with unique 6-character invite codes.
+- **Queue Room Mode**: The classic experience. One projector plays the queue, the crowd votes from their phones.
+- **Listen Together Mode**: The host's device streams audio via WebRTC (LiveKit) directly to all participants simultaneously. Everyone hears the music through their own device, perfectly in sync.
+- **Advanced Voting**: Reddit-style upvoting/downvoting and a democratic skip-vote system.
+- **Participant Moderation**: Hosts can view participant activity, ban abusive users, and manage the room.
+- **Native Flutter App & Android Auto**: A dedicated Android app that allows hosts to control the queue directly from their car dashboard while streaming to passengers.
 
-#### Run the Database Schema
+*(Note: We are actively building out this V2 architecture. See [`Votify_V2_Architecture.md`](./Votify_V2_Architecture.md) and [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) for full implementation details).*
 
-4. In your Supabase dashboard, go to **SQL Editor** (left sidebar)
-5. Click **"New Query"**
-6. Copy the entire contents of [`supabase-schema.sql`](./supabase-schema.sql) and paste it in
-7. Click **"Run"** — you should see "Success" for each statement
+---
 
-#### Enable Realtime
+## 🛠️ Tech Stack
 
-8. Go to **Database → Replication** (left sidebar)
-9. Find the `queue` table and make sure **Realtime** is toggled **ON**
+- **Frontend:** Vanilla HTML/CSS/JS (Migrating to V2 architecture)
+- **Native App:** Flutter (Upcoming)
+- **Backend:** Supabase (PostgreSQL + Realtime + Auth)
+- **Search:** Piped & Invidious APIs (open-source fallback chain)
+- **WebRTC (Listen Together):** LiveKit SFU
+- **Dev Server:** Vite
 
-#### Get Your API Keys
+---
 
-10. Go to **Project Settings → API** (left sidebar → gear icon)
-11. Copy these two values:
-    - **Project URL** → looks like `https://abcdefg.supabase.co`
-    - **anon / public key** → a long string starting with `eyJ...`
+## 🚀 Quick Start (Current Developer Setup)
 
-### 2. Configure Votify
+### 1. Set Up Supabase
 
-12. Open `js/supabase-config.js` in your editor
-13. Replace the placeholder values:
+1. Go to [supabase.com](https://supabase.com) and create a free project.
+2. In your Supabase dashboard, go to **SQL Editor** and run the contents of [`supabase-schema.sql`](./supabase-schema.sql).
+3. Go to **Database → Replication** and enable **Realtime** for the `queue` table.
+4. From **Project Settings → API**, copy your **Project URL** and **anon/public key**.
 
-```js
-const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';     // ← paste your Project URL
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';             // ← paste your anon key
+### 2. Configure Environment
+
+Copy `.env.example` to `.env` and fill in your Supabase credentials:
+
+```env
+VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 ```
 
 ### 3. Install & Run
@@ -49,56 +57,4 @@ npm install
 npm run dev
 ```
 
-The app opens at `http://localhost:3000`. Your **local network IP** (e.g., `http://192.168.x.x:3000`) will also be displayed in the terminal — this is what phones on the same Wi-Fi can use.
-
----
-
-## 🖥️ Usage
-
-| Screen | URL | Purpose |
-|--------|-----|---------|
-| **Landing** | `/` | Choose Host or Participant mode |
-| **Host** | `/host_6969.html` | Projector view — YouTube player + QR code + live queue |
-| **Participant** | `/participant.html` | Mobile view — Search, Add songs, Upvote |
-
-## 🚀 How to Run
-
-1. Open `http://localhost:3000/host_6969.html` on the machine connected to the projector
-2. The QR code auto-generates pointing to the participant page
-3. Songs auto-play from the queue (highest votes first)
-4. When a song ends, the next highest-voted song plays automatically
-
-### Participant Mode (Phone)
-1. Scan the QR code (or navigate to the participant URL)
-2. Search for any song
-3. Tap a result to add it to the queue
-4. If it's already in the queue, your tap counts as an upvote
-5. Watch the queue re-order in real time!
-
----
-
-## 🛠️ Tech Stack
-
-- **Frontend:** Vanilla HTML/CSS/JS
-- **Backend:** Supabase (PostgreSQL + Realtime)
-- **Search:** Invidious API (open-source, no API key needed)
-- **Playback:** YouTube IFrame Player API
-- **QR Code:** qrcode.js
-- **Dev Server:** Vite
-
----
-
-## 📋 Pre-Event Checklist
-
-- [ ] Supabase project created and schema applied
-- [ ] `supabase-config.js` updated with real credentials
-- [ ] Host screen tested — YouTube player loads and autoplays
-- [ ] QR code scanned from phone — participant page loads
-- [ ] Both screens update in real time
-- [ ] Anti-spam working (can't vote same song twice)
-- [ ] Wi-Fi confirmed — all devices on the same network
-- [ ] Projector + speakers connected and tested
-
----
-
-*Built for NEXORA Vibe Coding 🎶*
+The app opens at `http://localhost:3000`. You can test the host screen and use another device on your local network to act as a participant.

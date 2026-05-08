@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Votify — Host Dashboard</title>
+  <meta name="description" content="Start a new music room or rejoin your existing one." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/global.css" />
+  <link rel="stylesheet" href="/css/home.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow purple"></div>
+  <div class="bg-glow cyan"></div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ── Top Bar ── -->
+  <header class="home-topbar">
+    <div class="home-brand">
+      <a href="index.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+        <span>🎧</span>
+        <span class="gradient-text" style="font-weight:800;font-size:1.2rem;">Votify</span>
+      </a>
+    </div>
+    <div class="home-user">
+      <span class="home-username" id="home-username">Loading...</span>
+      <button class="btn-secondary btn-sm" id="btn-signout">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="home-main">
+
+    <!-- Welcome -->
+    <section class="home-welcome">
+      <h1 class="home-greeting" id="home-greeting">Welcome back 👋</h1>
+      <p class="home-greeting-sub">Start a new room or pick up where you left off.</p>
+    </section>
+
+    <!-- Active Room Banner (shown if host has an active room) -->
+    <section class="active-room-banner glass-card hidden" id="active-room-banner">
+      <div class="active-room-info">
+        <span class="active-room-icon">🟢</span>
+        <div>
+          <div class="active-room-label">Active Room</div>
+          <div class="active-room-name" id="active-room-name">—</div>
+          <div class="active-room-code" id="active-room-code">—</div>
+        </div>
+      </div>
+      <div class="active-room-actions">
+        <button class="btn-primary btn-sm" id="btn-rejoin-room">Rejoin</button>
+        <button class="btn-secondary btn-sm btn-danger-outline" id="btn-end-room">Close Room</button>
+      </div>
+    </section>
+
+    <!-- Mode Picker -->
+    <section class="mode-picker" id="mode-picker">
+      <h2 class="section-heading">Start a New Room</h2>
+      <div class="mode-cards">
+
+        <button class="mode-card glass-card" id="btn-queue-room" data-mode="queue">
+          <div class="mode-card-icon">🖥️</div>
+          <h3 class="mode-card-title">Queue Room</h3>
+          <p class="mode-card-desc">One screen plays the queue. The crowd votes from their phones. Classic Votify.</p>
+          <span class="mode-card-cta">Start Room →</span>
+        </button>
+
+        <button class="mode-card glass-card" id="btn-listen-room" data-mode="listen_together">
+          <div class="mode-card-icon">🔊</div>
+          <h3 class="mode-card-title">Listen Together</h3>
+          <p class="mode-card-desc">Everyone's phone plays in sync. Your device streams audio to all participants.</p>
+          <span class="mode-card-cta badge-coming-soon">Phase 2 — Coming Soon</span>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- Paused Sessions -->
+    <section class="recent-rooms hidden" id="paused-rooms-section">
+      <h2 class="section-heading">⏸️ Paused Sessions</h2>
+      <div class="recent-rooms-list" id="paused-rooms-list"></div>
+    </section>
+
+  </main>
+
+  <!-- ── Create Room Modal ── -->
+  <div class="modal-overlay hidden" id="create-room-modal" aria-modal="true" role="dialog" aria-label="Create Room">
+    <div class="modal-content glass-card" style="max-width:440px;width:90%;margin:auto;padding:36px;">
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+        <div style="font-size:2rem;" id="modal-icon">🖥️</div>
+        <div>
+          <h3 class="modal-title" id="modal-title" style="margin-bottom:4px;">Start a Queue Room</h3>
+          <p style="font-size:0.82rem;color:var(--text-secondary);">Give your room a name and optionally set a PIN</p>
+        </div>
+      </div>
+
+      <form class="auth-form" id="create-room-form" novalidate style="gap:20px;">
+        <div class="form-group">
+          <label for="room-name" class="form-label">Room Name</label>
+          <input type="text" id="room-name" class="form-input" placeholder="e.g. Arjun's Party 🎉" maxlength="40" autocomplete="off" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.9rem;">
+            <input type="checkbox" id="room-pin-toggle" style="width:18px;height:18px;accent-color:#7c3aed;cursor:pointer;" />
+            <span>Require a PIN to join</span>
+          </label>
+          <input
+            type="text"
+            id="room-pin"
+            class="form-input hidden"
+            placeholder="Enter 4–8 digit PIN"
+            maxlength="8"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="off"
+            style="margin-top:8px;"
+          />
+        </div>
+
+        <p class="form-error hidden" id="room-form-error" role="alert"></p>
+        <button type="submit" class="btn-primary btn-submit" id="btn-create-submit" style="margin-top:4px;">
+          🚀 Create Room
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirm Modal (hidden by default) -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-card" style="max-width:400px;width:90%;margin:auto;padding:32px;text-align:center;">
+      <h3 id="confirm-title" class="modal-title" style="margin-bottom:12px;">Confirm</h3>
+      <p id="confirm-message" class="modal-desc"></p>
+      <div class="modal-actions" style="justify-content:center;">
+        <button id="confirm-cancel" class="btn-secondary">Cancel</button>
+        <button id="confirm-ok" class="btn-secondary btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/home.js?v=2"></script>
+</body>
+</html>
