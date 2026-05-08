@@ -122,14 +122,6 @@ export async function activateRoom(roomId) {
 }
 
 // ── End a Room ───────────────────────────────────────────────
-export async function endRoom(roomId) {
-  const { error } = await supabase
-    .from('rooms')
-    .update({ status: 'ended' })
-    .eq('id', roomId);
-  if (error) throw error;
-}
-
 // ── Delete a Room ────────────────────────────────────────────
 export async function deleteRoom(roomId) {
   const { error } = await supabase

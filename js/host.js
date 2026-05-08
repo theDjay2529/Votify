@@ -5,7 +5,7 @@
 
 import { supabase } from './supabase-config.js';
 import { requireAuth, getProfile } from './auth.js';
-import { getRoomForHost, endRoom, pauseRoom, activateRoom, getRoomParticipants, kickParticipant, getBannedParticipants, unbanParticipant } from './rooms.js';
+import { getRoomForHost, pauseRoom, activateRoom, getRoomParticipants, kickParticipant, getBannedParticipants, unbanParticipant } from './rooms.js';
 
 // ── State ──
 let player = null;

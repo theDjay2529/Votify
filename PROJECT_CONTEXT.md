@@ -29,7 +29,7 @@ Votify is a real-time, crowd-controlled YouTube music experience. A Host starts 
 - `index.html` — **Landing Page**: Entry point with "Join Room" and "Host Room" options (Dark themed).
 - `home.html` — **Host Dashboard**: Manage active/paused rooms, create new rooms.
 - `auth.html` — Login page (Google OAuth + Username/Password).
-- `host_6969.html` — Host Projector Screen (playback + controls).
+- `host.html` — Host Projector Screen (playback + controls).
 - `join.html` — Participant entry (room code input).
 - `participant.html` — Participant remote (search, vote, skip).
 
@@ -138,6 +138,8 @@ VITE_SUPABASE_ANON_KEY  — Supabase public API key
 VITE_DEPLOYED_URL       — Base URL for QR code generation
 ```
 
+Create `.env` locally in the project root. It is intentionally ignored by Git, and there is no committed environment template. There is no `VITE_HOST_PIN` in V2.
+
 ---
 
 ## 9. SQL Patches Required in Supabase Dashboard
@@ -234,3 +236,21 @@ CREATE UNIQUE INDEX one_active_room_per_host
 2. **New realtime interactions** → Add a Broadcast fallback alongside Postgres Changes.
 3. **Cache busting** → Increment `?v=X` in script tags in HTML files after JS logic changes.
 4. **Never use `const` for shared channel variables** — must be module-level `let`.
+
+---
+
+## 11. Phase 1 Status
+
+Phase 1 is considered code-complete for the web Queue Room foundation:
+
+- Host auth and profile setup are implemented.
+- `home.html` is the authenticated host dashboard.
+- `host.html` is the room-scoped host playback screen.
+- Room creation supports Queue Room mode, optional PINs, and one-active-room enforcement.
+- Hosts can have multiple paused rooms and can create a new room while old rooms remain paused.
+- Participant join supports room code, PIN, guest identity, and authenticated identity.
+- Queue, voting, skip votes, moderation, kick/ban, pause, and rejoin are room-scoped.
+- Realtime uses room-scoped Supabase channels with broadcasts for instant UI sync.
+- `dashboard.html`, `host_6969.html`, and the V1 `supabase-schema.sql` have been removed from the active app.
+
+External deployment follow-up: schedule `expire_inactive_rooms()` in Supabase if automatic stale-room cleanup is required in production.

@@ -66,7 +66,7 @@ async function loadActiveRoom() {
 }
 
 document.getElementById('btn-rejoin-room').addEventListener('click', () => {
-  if (activeRoom) window.location.href = `host_6969.html?room=${activeRoom.code}`;
+  if (activeRoom) window.location.href = `host.html?room=${activeRoom.code}`;
 });
 
 document.getElementById('btn-end-room').addEventListener('click', async () => {
@@ -111,7 +111,7 @@ async function loadPausedRooms() {
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
-        <a href="host_6969.html?room=${r.code}" class="btn-primary btn-sm">Rejoin</a>
+        <a href="host.html?room=${r.code}" class="btn-primary btn-sm">Rejoin</a>
         <button class="btn-secondary btn-sm btn-danger-outline btn-close-paused" data-room-id="${r.id}" data-room-name="${escapeHtml(r.name)}">Close</button>
       </div>
     </div>
@@ -205,7 +205,7 @@ document.getElementById('create-room-form').addEventListener('submit', async (e)
     showToast(`Room "${room.name}" created! Code: ${room.code}`, 'success');
     closeCreateModal();
     setTimeout(() => {
-      window.location.href = `host_6969.html?room=${room.code}`;
+      window.location.href = `host.html?room=${room.code}`;
     }, 600);
   } catch (err) {
     errEl.textContent = err.message || 'Failed to create room. Please try again.';
