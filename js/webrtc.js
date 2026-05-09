@@ -59,9 +59,9 @@ export class ListenTogetherConnection {
   }
 
   async fetchToken() {
-    if (FUNCTIONS_URL) {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${FUNCTIONS_URL.replace(/\/$/, '')}/livekit-token`, {
+    // We moved the token function to Vercel Serverless (/api)
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`/api/livekit-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,20 +78,6 @@ export class ListenTogetherConnection {
       if (!res.ok) throw new Error(data?.error || 'Failed to fetch local LiveKit token.');
       if (!data?.token) throw new Error(data?.error || 'LiveKit token response was empty.');
       return data;
-    }
-
-    const { data, error } = await supabase.functions.invoke('livekit-token', {
-      body: {
-        roomCode: this.roomCode,
-        participantId: this.participantId,
-        displayName: this.displayName,
-        isHost: this.isHost,
-      },
-    });
-
-    if (error) throw new Error(error.message || 'Failed to fetch LiveKit token.');
-    if (!data?.token) throw new Error(data?.error || 'LiveKit token response was empty.');
-    return data;
   }
 
   bindRoomEvents() {
