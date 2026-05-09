@@ -1,5 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-import { AccessToken } from 'livekit-server-sdk';
+
 
 export default async function handler(req, res) {
   // CORS Headers
@@ -16,6 +15,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const { AccessToken } = await import('livekit-server-sdk');
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
     const apiKey = process.env.LIVEKIT_API_KEY;
