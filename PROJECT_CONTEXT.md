@@ -18,6 +18,7 @@ Votify is a real-time, crowd-controlled YouTube music experience. A Host starts 
 | Build Tool | Vite |
 | Backend/DB | Supabase (Postgres + Auth + Realtime) |
 | Playback | YouTube IFrame Player API |
+| Listen Together | LiveKit Cloud + Supabase Edge Function token minting |
 | Realtime | Supabase Channels (Presence + Broadcast + Postgres Changes) |
 | Search | Piped API (Primary) → Invidious (Fallback) |
 
@@ -41,6 +42,10 @@ Votify is a real-time, crowd-controlled YouTube music experience. A Host starts 
 - `js/host.js` — Playback authority, presence broadcaster, history tab.
 - `js/participant.js` — Search, add songs, vote, queue rendering (mirrors host exactly).
 - `js/home.js` — Dashboard logic: active + paused rooms, create room modal.
+- `js/webrtc.js` — LiveKit browser wrapper for Listen Together connect/publish/subscribe/resync.
+
+### Edge Functions
+- `supabase/functions/livekit-token` — Mints short-lived LiveKit tokens after validating room mode and host publish rights.
 
 ### CSS
 - `css/global.css` — Design tokens, glassmorphism, shared utilities.
@@ -136,9 +141,25 @@ All clients join a single channel: `room-{ROOM_CODE}`.
 VITE_SUPABASE_URL       — Supabase project URL
 VITE_SUPABASE_ANON_KEY  — Supabase public API key
 VITE_DEPLOYED_URL       — Base URL for QR code generation
+VITE_LIVEKIT_URL        — LiveKit Cloud WebSocket URL for Listen Together
 ```
 
 Create `.env` locally in the project root. It is intentionally ignored by Git, and there is no committed environment template. There is no `VITE_HOST_PIN` in V2.
+
+Supabase Edge Function secrets required for `livekit-token`:
+
+```
+LIVEKIT_API_KEY         — LiveKit server API key
+LIVEKIT_API_SECRET      — LiveKit server API secret
+```
+
+Deploy after setting secrets:
+
+```bash
+supabase secrets set LIVEKIT_API_KEY=YOUR_LIVEKIT_API_KEY
+supabase secrets set LIVEKIT_API_SECRET=YOUR_LIVEKIT_API_SECRET
+supabase functions deploy livekit-token
+```
 
 ---
 
@@ -254,3 +275,19 @@ Phase 1 is considered code-complete for the web Queue Room foundation:
 - `dashboard.html`, `host_6969.html`, and the V1 `supabase-schema.sql` have been removed from the active app.
 
 External deployment follow-up: schedule `expire_inactive_rooms()` in Supabase if automatic stale-room cleanup is required in production.
+
+---
+
+## 12. Phase 2 Status
+
+Phase 2 web Listen Together implementation is scaffolded in the app:
+
+- Listen Together room creation is enabled from `home.html`.
+- Listen Together rooms set `livekit_room_name` to the Votify room code.
+- `js/webrtc.js` wraps LiveKit browser connection, host tab-audio publishing, participant audio subscription, volume, and resync.
+- `host.html` shows a Listen Together panel for sharing browser tab audio while keeping YouTube video playback visible on the host device.
+- `participant.html` shows a Listen Together panel with start listening, local volume, and resync controls.
+- Leaving a room disconnects LiveKit audio before pausing the Votify room.
+- `supabase/functions/livekit-token` mints LiveKit JWTs server-side and only allows the room host to publish.
+
+Live deployment still requires a LiveKit Cloud project, `VITE_LIVEKIT_URL`, and deployed Supabase Edge Function secrets.

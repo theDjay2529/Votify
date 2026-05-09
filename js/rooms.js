@@ -31,6 +31,7 @@ export async function createRoom({ name, mode, pin }) {
       host_id: user.id,
       mode,
       pin: pin ? String(pin).trim() : null,
+      livekit_room_name: mode === 'listen_together' ? code : null,
       status: 'active',
     })
     .select('id, code, name, mode, pin')

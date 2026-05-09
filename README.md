@@ -2,7 +2,7 @@
 
 Votify is a real-time, crowd-controlled YouTube music queue. A host creates a room, participants join by room code or QR link, and everyone votes the queue together.
 
-Phase 1 is the web foundation: auth, rooms, Queue Room mode, participant join, voting, skip votes, pause/rejoin, and host moderation.
+Phase 1 is the web foundation: auth, rooms, Queue Room mode, participant join, voting, skip votes, pause/rejoin, and host moderation. Phase 2 adds web Listen Together mode with LiveKit-powered tab-audio streaming.
 
 ## Tech Stack
 
@@ -10,6 +10,7 @@ Phase 1 is the web foundation: auth, rooms, Queue Room mode, participant join, v
 - Build tool: Vite
 - Backend: Supabase Auth, Postgres, RLS, and Realtime
 - Playback: YouTube IFrame Player API
+- Listen Together: LiveKit Cloud and Supabase Edge Functions
 - Search: Piped API with Invidious fallback
 
 ## Main Entry Points
@@ -32,6 +33,8 @@ Phase 1 is the web foundation: auth, rooms, Queue Room mode, participant join, v
 VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 VITE_DEPLOYED_URL=http://localhost:3000
+VITE_LIVEKIT_URL=wss://YOUR_LIVEKIT_PROJECT.livekit.cloud
+VITE_SUPABASE_FUNCTIONS_URL=http://127.0.0.1:54321/functions/v1
 ```
 
 5. Install and run:
@@ -50,6 +53,34 @@ npm run build
 ```
 
 The static build outputs to `dist/`.
+
+## Listen Together Local Setup
+
+1. Create a LiveKit Cloud project.
+2. Copy the LiveKit WebSocket URL into `VITE_LIVEKIT_URL`.
+3. Copy the LiveKit API key and secret.
+4. Create `supabase/.env.local` for local Edge Function secrets:
+
+```env
+SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+LIVEKIT_API_KEY=YOUR_LIVEKIT_API_KEY
+LIVEKIT_API_SECRET=YOUR_LIVEKIT_API_SECRET
+```
+
+5. Serve the token function locally. The Docker-free Node server is easiest for local testing:
+
+```bash
+npm run dev:tokens
+```
+
+The Supabase CLI version is also available if Docker Desktop is healthy:
+
+```bash
+npx supabase functions serve livekit-token --env-file supabase/.env.local --no-verify-jwt
+```
+
+The LiveKit API secret must stay server-side. The browser only receives short-lived room tokens from `supabase/functions/livekit-token`. Netlify/deployed function setup can wait until production.
 
 ## Project Notes
 

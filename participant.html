@@ -74,6 +74,27 @@
       </button>
     </section>
 
+    <section class="listen-panel glass-card hidden" id="listen-panel">
+      <div class="listen-panel-top">
+        <div>
+          <div class="listen-kicker">Listen Together</div>
+          <div class="listen-status" id="listen-status">Waiting for host audio</div>
+        </div>
+        <div class="listen-wave" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <div class="listen-actions">
+        <button class="listen-button" id="btn-start-listening">Start Listening</button>
+        <button class="listen-button secondary" id="btn-resync-audio" disabled>Resync</button>
+      </div>
+      <label class="listen-volume">
+        <span>Volume</span>
+        <input type="range" id="listen-volume" min="0" max="1" step="0.05" value="1" />
+      </label>
+      <div class="listen-audio-container" id="listen-audio-container"></div>
+    </section>
+
     <!-- Queue Section (V2: shows net score and dual vote buttons) -->
     <section class="queue-section" id="queue-section">
       <div class="section-header">
@@ -122,6 +143,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/participant.js?v=6"></script>
+  <script type="module" src="js/participant.js?v=7"></script>
 </body>
 </html>

@@ -160,7 +160,11 @@ document.getElementById('btn-queue-room').addEventListener('click', () => {
 });
 
 document.getElementById('btn-listen-room').addEventListener('click', () => {
-  showToast('Listen Together is coming in Phase 2!', 'info');
+  if (activeRoom) {
+    showToast('You already have an active room. Leave it first before creating a new one.', 'error');
+    return;
+  }
+  openCreateModal('listen_together');
 });
 
 document.getElementById('modal-close').addEventListener('click', () => {

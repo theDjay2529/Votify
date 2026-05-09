@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:tokens": "node scripts/livekit-token-dev.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1"
+    "@supabase/supabase-js": "^2.49.1",
+    "livekit-client": "^2.18.9",
+    "livekit-server-sdk": "^2.15.2"
   },
   "devDependencies": {
     "vite": "^6.3.2"

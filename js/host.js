@@ -6,6 +6,7 @@
 import { supabase } from './supabase-config.js';
 import { requireAuth, getProfile } from './auth.js';
 import { getRoomForHost, pauseRoom, activateRoom, getRoomParticipants, kickParticipant, getBannedParticipants, unbanParticipant } from './rooms.js';
+import { ListenTogetherConnection, isListenTogetherConfigured } from './webrtc.js';
 
 // ── State ──
 let player = null;
@@ -17,6 +18,8 @@ let roomData = null;
 let syncChannel = null;
 let presenceCount = 0;
 let isPinVisible = false;
+let listenConnection = null;
+let hostIdentity = null;
 
 // ── DOM Elements ──
 const nowPlayingSection  = document.getElementById('now-playing-section');
@@ -30,12 +33,15 @@ const toastContainer     = document.getElementById('toast-container');
 const reconnectBanner    = document.getElementById('reconnect-banner');
 const pBadge             = document.getElementById('p-badge');
 const participantsList   = document.getElementById('participants-list');
+const listenHostStatus   = null;
+const btnStartListenAudio = document.getElementById('btn-start-listen-audio');
 
 // ── Initialization ───────────────────────────────────────────
 async function init() {
   // 1. Auth Guard
   const session = await requireAuth();
   if (!session) return;
+  hostIdentity = session.user.id;
 
   // 2. Room Context
   const params = new URLSearchParams(window.location.search);
@@ -65,6 +71,9 @@ async function init() {
   // 4. QR Code
   generateQRCode();
 
+  // 4.5 Listen Together controls
+  setupListenTogetherHost();
+
   // 5. YouTube Player
   initPlayer();
 
@@ -86,6 +95,58 @@ async function init() {
 
   // 9. Visualizer
   initVisualizer();
+}
+
+function setupListenTogetherHost() {
+  if (roomData.mode !== 'listen_together') return;
+
+  btnStartListenAudio?.classList.remove('hidden');
+  if (!isListenTogetherConfigured()) {
+    if (btnStartListenAudio) btnStartListenAudio.disabled = true;
+    showToast('Add VITE_LIVEKIT_URL and deploy livekit-token to enable audio.', 'error');
+    return;
+  }
+
+  listenConnection = new ListenTogetherConnection({
+    roomCode,
+    participantId: hostIdentity,
+    displayName: 'Host',
+    isHost: true,
+    onStatus: updateListenHostStatus,
+    onParticipantCount: (count) => {
+    },
+    onQuality: (quality) => {
+    },
+  });
+
+  btnStartListenAudio?.addEventListener('click', startListenTogetherAudio);
+}
+
+async function startListenTogetherAudio() {
+  if (!listenConnection) return;
+  btnStartListenAudio.disabled = true;
+  btnStartListenAudio.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>'; // loading
+  try {
+    await listenConnection.connect();
+    await listenConnection.publishTabAudio();
+    btnStartListenAudio.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'; // pause icon
+    showToast('Listen Together audio is live.', 'success');
+  } catch (err) {
+    console.error('[Votify] Listen Together host error:', err);
+    btnStartListenAudio.disabled = false;
+    btnStartListenAudio.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5v14l11-7z"/></svg>'; // play icon
+    showToast(err.message || 'Could not start Listen Together audio.', 'error');
+  }
+}
+
+function updateListenHostStatus(status) {
+  if (status === 'audio-ended' && btnStartListenAudio) {
+    btnStartListenAudio.disabled = false;
+    btnStartListenAudio.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5v14l11-7z"/></svg>'; // play icon
+  }
+}
+
+function setListenHostStatus(text, isError = false) {
 }
 
 // ── QR Code ──────────────────────────────────────────────────
@@ -578,6 +639,7 @@ document.getElementById('btn-blur-player')?.addEventListener('click', () => {
 document.getElementById('btn-end-session').addEventListener('click', async () => {
   if (await showConfirm('Leave Session', 'Save and pause the room? Participants will see a hold message until you rejoin.')) {
     try {
+      await listenConnection?.disconnect();
       await pauseRoom(roomData.id);
       roomData.status = 'paused';
       // Broadcast after the DB write so participants and persisted state agree.

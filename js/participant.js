@@ -8,6 +8,7 @@ import { supabase } from './supabase-config.js';
 import { getOrCreateGuestToken, getUser } from './auth.js';
 import { getRoom, upsertParticipant, isParticipantBanned } from './rooms.js';
 import { castUpvote, castDownvote, removeVote, submitSkipVote, getVoteForItem, getSkipVoteCount } from './voting.js';
+import { ListenTogetherConnection, isListenTogetherConfigured } from './webrtc.js';
 
 // ── State ──
 let roomCode = null;
@@ -21,6 +22,7 @@ let presenceCount = 1;
 let searchTimeout = null;
 let syncChannel = null; // MODULE-LEVEL — shared by all functions
 let roomIsPaused = false;
+let listenConnection = null;
 
 // ── DOM Elements ──
 const searchInput     = document.getElementById('search-input');
@@ -40,6 +42,12 @@ const statusModal     = document.getElementById('status-modal');
 const toastContainer  = document.getElementById('toast-container');
 const reconnectBanner = document.getElementById('reconnect-banner');
 const headerRoom      = document.getElementById('p-header-room');
+const listenPanel     = document.getElementById('listen-panel');
+const listenStatus    = document.getElementById('listen-status');
+const btnStartListening = document.getElementById('btn-start-listening');
+const btnResyncAudio  = document.getElementById('btn-resync-audio');
+const listenVolume    = document.getElementById('listen-volume');
+const listenAudioContainer = document.getElementById('listen-audio-container');
 
 // ── Init ─────────────────────────────────────────────────────
 async function init() {
@@ -84,6 +92,7 @@ async function init() {
 
   // 7. Realtime
   setupRealtime();
+  setupListenTogetherParticipant();
 
   if (!roomIsPaused) {
     showToast(`Joined ${roomData.name}! 🎧`, 'success');
@@ -91,6 +100,85 @@ async function init() {
 }
 
 // ── Paused Banner ─────────────────────────────────────────────
+function setupListenTogetherParticipant() {
+  if (roomData.mode !== 'listen_together') return;
+
+  listenPanel?.classList.remove('hidden');
+  if (!isListenTogetherConfigured()) {
+    setListenStatus('Listen Together is not configured for this deployment.', true);
+    if (btnStartListening) btnStartListening.disabled = true;
+    return;
+  }
+
+  listenConnection = new ListenTogetherConnection({
+    roomCode,
+    participantId: participantToken,
+    displayName,
+    isHost: false,
+    audioContainer: listenAudioContainer,
+    onStatus: updateListenStatus,
+    onAudioTrack: () => {
+      listenConnection?.setVolume(listenVolume?.value ?? 1);
+      setListenStatus('Live audio connected.');
+    },
+  });
+
+  btnStartListening?.addEventListener('click', startListening);
+  btnResyncAudio?.addEventListener('click', resyncListening);
+  listenVolume?.addEventListener('input', (e) => {
+    listenConnection?.setVolume(e.target.value);
+  });
+}
+
+async function startListening() {
+  if (!listenConnection) return;
+  btnStartListening.disabled = true;
+  btnStartListening.textContent = 'Connecting...';
+  try {
+    await listenConnection.connect();
+    await listenConnection.startAudio();
+    listenConnection.setVolume(listenVolume?.value ?? 1);
+    btnStartListening.textContent = 'Listening';
+    if (btnResyncAudio) btnResyncAudio.disabled = false;
+  } catch (err) {
+    console.error('[Votify] Listen Together participant error:', err);
+    setListenStatus(err.message || 'Could not connect to room audio.', true);
+    btnStartListening.disabled = false;
+    btnStartListening.textContent = 'Try Again';
+  }
+}
+
+async function resyncListening() {
+  if (!listenConnection) return;
+  btnResyncAudio.disabled = true;
+  setListenStatus('Resyncing...');
+  try {
+    await listenConnection.resync();
+    listenConnection.setVolume(listenVolume?.value ?? 1);
+    setListenStatus('Live audio connected.');
+  } catch (err) {
+    setListenStatus(err.message || 'Resync failed.', true);
+  } finally {
+    btnResyncAudio.disabled = false;
+  }
+}
+
+function updateListenStatus(status) {
+  const labels = {
+    connecting: 'Connecting to room audio...',
+    connected: 'Connected. Waiting for host audio.',
+    reconnecting: 'Reconnecting room audio...',
+    disconnected: 'Audio disconnected.',
+  };
+  setListenStatus(labels[status] || status);
+}
+
+function setListenStatus(text, isError = false) {
+  if (!listenStatus) return;
+  listenStatus.textContent = text;
+  listenStatus.style.color = isError ? '#f87171' : '';
+}
+
 function showPausedBanner(visible) {
   let banner = document.getElementById('paused-banner');
   if (!banner) {
@@ -112,6 +200,9 @@ function showPausedBanner(visible) {
   // Disable search input when paused
   if (searchInput) searchInput.disabled = visible;
   if (skipBtn) skipBtn.disabled = visible;
+  if (roomData?.mode === 'listen_together' && visible) {
+    setListenStatus('Room paused. Audio will resume when the host returns.');
+  }
 }
 
 // ── Identity ─────────────────────────────────────────────────
@@ -333,6 +424,7 @@ function setupRealtime() {
         roomIsPaused = false;
         roomData.status = 'active';
         showPausedBanner(false);
+        if (roomData.mode === 'listen_together') setListenStatus('Connected. Waiting for host audio.');
         showToast('Host is back! Session resumed. 🎧', 'success');
         refreshQueue();
       }
@@ -368,6 +460,7 @@ function setupRealtime() {
         roomIsPaused = false;
         roomData.status = 'active';
         showPausedBanner(false);
+        if (roomData.mode === 'listen_together') setListenStatus('Connected. Waiting for host audio.');
         showToast('Host is back! Session resumed. 🎧', 'success');
         refreshQueue();
       }
