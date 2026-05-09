@@ -17,8 +17,9 @@ Votify is a real-time, crowd-controlled YouTube music experience. A Host starts 
 | Frontend | Vanilla HTML5, CSS3, ES6+ JS |
 | Build Tool | Vite |
 | Backend/DB | Supabase (Postgres + Auth + Realtime) |
+| Hosting | Vercel (Production) |
 | Playback | YouTube IFrame Player API |
-| Listen Together | LiveKit Cloud + Supabase Edge Function token minting |
+| Listen Together | LiveKit Cloud + Vercel Serverless Function token minting |
 | Realtime | Supabase Channels (Presence + Broadcast + Postgres Changes) |
 | Search | Piped API (Primary) → Invidious (Fallback) |
 
@@ -44,8 +45,10 @@ Votify is a real-time, crowd-controlled YouTube music experience. A Host starts 
 - `js/home.js` — Dashboard logic: active + paused rooms, create room modal.
 - `js/webrtc.js` — LiveKit browser wrapper for Listen Together connect/publish/subscribe/resync.
 
-### Edge Functions
-- `supabase/functions/livekit-token` — Mints short-lived LiveKit tokens after validating room mode and host publish rights.
+### API & Functions
+- `api/livekit-token.js` — **Vercel Function**: Node.js serverless function that mints LiveKit JWTs after validating room mode and host publish rights.
+- `vercel.json` — Deployment config for routing, rewrites, and API handling.
+- `netlify.toml` — (Legacy/Backup) Netlify deployment config.
 
 ### CSS
 - `css/global.css` — Design tokens, glassmorphism, shared utilities.
@@ -137,29 +140,19 @@ All clients join a single channel: `room-{ROOM_CODE}`.
 
 ## 8. Environment Variables
 
-```
-VITE_SUPABASE_URL       — Supabase project URL
-VITE_SUPABASE_ANON_KEY  — Supabase public API key
-VITE_DEPLOYED_URL       — Base URL for QR code generation
-VITE_LIVEKIT_URL        — LiveKit Cloud WebSocket URL for Listen Together
-```
-
-Create `.env` locally in the project root. It is intentionally ignored by Git, and there is no committed environment template. There is no `VITE_HOST_PIN` in V2.
-
-Supabase Edge Function secrets required for `livekit-token`:
+Votify V2 uses Vercel for production hosting. All variables must be set in the Vercel Dashboard (Settings > Environment Variables).
 
 ```
-LIVEKIT_API_KEY         — LiveKit server API key
-LIVEKIT_API_SECRET      — LiveKit server API secret
+VITE_SUPABASE_URL           — Supabase project URL
+VITE_SUPABASE_ANON_KEY      — Supabase public API key
+VITE_DEPLOYED_URL           — Base URL for QR code generation (e.g., https://votifyv2.vercel.app)
+VITE_LIVEKIT_URL            — LiveKit Cloud WebSocket URL for Listen Together
+VITE_SUPABASE_FUNCTIONS_URL — Set to "/api" for production Vercel deployment
+LIVEKIT_API_KEY             — LiveKit server API key (Secret)
+LIVEKIT_API_SECRET          — LiveKit server API secret (Secret)
 ```
 
-Deploy after setting secrets:
-
-```bash
-supabase secrets set LIVEKIT_API_KEY=YOUR_LIVEKIT_API_KEY
-supabase secrets set LIVEKIT_API_SECRET=YOUR_LIVEKIT_API_SECRET
-supabase functions deploy livekit-token
-```
+Create `.env` locally for development. Use `npx vercel --prod` to deploy manual updates if GitHub sync is disabled.
 
 ---
 
@@ -280,14 +273,12 @@ External deployment follow-up: schedule `expire_inactive_rooms()` in Supabase if
 
 ## 12. Phase 2 Status
 
-Phase 2 web Listen Together implementation is scaffolded in the app:
+Phase 2 web Listen Together implementation is production-ready on Vercel:
 
 - Listen Together room creation is enabled from `home.html`.
 - Listen Together rooms set `livekit_room_name` to the Votify room code.
 - `js/webrtc.js` wraps LiveKit browser connection, host tab-audio publishing, participant audio subscription, volume, and resync.
-- `host.html` shows a Listen Together panel for sharing browser tab audio while keeping YouTube video playback visible on the host device.
+- `host.html` uses a streamlined audio control (Play/Pause) below the player to share browser tab audio.
 - `participant.html` shows a Listen Together panel with start listening, local volume, and resync controls.
-- Leaving a room disconnects LiveKit audio before pausing the Votify room.
-- `supabase/functions/livekit-token` mints LiveKit JWTs server-side and only allows the room host to publish.
-
-Live deployment still requires a LiveKit Cloud project, `VITE_LIVEKIT_URL`, and deployed Supabase Edge Function secrets.
+- `api/livekit-token.js` mints LiveKit JWTs on Vercel and only allows the room host to publish.
+- **Production URL**: `https://votifyv2.vercel.app` (configured with `V2` branch deployment).

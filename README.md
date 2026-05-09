@@ -6,12 +6,14 @@ Phase 1 is the web foundation: auth, rooms, Queue Room mode, participant join, v
 
 ## Tech Stack
 
-- Frontend: Vanilla HTML, CSS, and ES modules
-- Build tool: Vite
-- Backend: Supabase Auth, Postgres, RLS, and Realtime
-- Playback: YouTube IFrame Player API
-- Listen Together: LiveKit Cloud and Supabase Edge Functions
-- Search: Piped API with Invidious fallback
+- **Frontend**: Vanilla HTML, CSS, and ES modules
+- **Build tool**: Vite
+- **Backend**: Supabase Auth, Postgres, RLS, and Realtime
+- **Hosting**: Vercel (Production)
+- **Playback**: YouTube IFrame Player API
+- **Listen Together**: LiveKit Cloud
+- **Serverless**: Vercel Functions (Node.js)
+- **Search**: Piped API with Invidious fallback
 
 ## Main Entry Points
 
@@ -24,17 +26,19 @@ Phase 1 is the web foundation: auth, rooms, Queue Room mode, participant join, v
 
 ## Setup
 
-1. Create a Supabase project.
+1. Create a Supabase project and a LiveKit Cloud project.
 2. In Supabase SQL Editor, run `supabase-schema-v2.sql`.
-3. Create a local `.env` file in the project root. This file is intentionally ignored by Git.
-4. Add your local environment values:
+3. Create a local `.env` file in the project root.
+4. Add your environment values:
 
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-VITE_DEPLOYED_URL=http://localhost:3000
+VITE_DEPLOYED_URL=https://your-site.vercel.app
 VITE_LIVEKIT_URL=wss://YOUR_LIVEKIT_PROJECT.livekit.cloud
-VITE_SUPABASE_FUNCTIONS_URL=http://127.0.0.1:54321/functions/v1
+VITE_SUPABASE_FUNCTIONS_URL=/api
+LIVEKIT_API_KEY=YOUR_LIVEKIT_API_KEY
+LIVEKIT_API_SECRET=YOUR_LIVEKIT_API_SECRET
 ```
 
 5. Install and run:
@@ -46,46 +50,25 @@ npm run dev
 
 The dev server runs at `http://localhost:3000`.
 
-## Build
+## Production Deployment (Vercel)
 
-```bash
-npm run build
-```
+Votify V2 is designed to run on Vercel for maximum performance and easy serverless scaling.
 
-The static build outputs to `dist/`.
+1. **GitHub Sync**: Connect your repository to Vercel.
+2. **Environment Variables**: Add all the variables from the `.env` section above to the Vercel Dashboard (Settings > Environment Variables).
+3. **Branch**: Ensure your `Production Branch` is set to `V2` (Settings > Git).
+4. **Supabase Auth**: Add your Vercel URL (e.g., `https://votifyv2.vercel.app`) to your Supabase Project Settings > Auth > URL Configuration > Site URL and Redirect URIs.
 
-## Listen Together Local Setup
+## Listen Together
 
-1. Create a LiveKit Cloud project.
-2. Copy the LiveKit WebSocket URL into `VITE_LIVEKIT_URL`.
-3. Copy the LiveKit API key and secret.
-4. Create `supabase/.env.local` for local Edge Function secrets:
+Phase 2 uses LiveKit for tab-audio streaming. The token generation logic is handled by `api/livekit-token.js` as a Vercel Serverless Function.
 
-```env
-SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-LIVEKIT_API_KEY=YOUR_LIVEKIT_API_KEY
-LIVEKIT_API_SECRET=YOUR_LIVEKIT_API_SECRET
-```
-
-5. Serve the token function locally. The Docker-free Node server is easiest for local testing:
-
-```bash
-npm run dev:tokens
-```
-
-The Supabase CLI version is also available if Docker Desktop is healthy:
-
-```bash
-npx supabase functions serve livekit-token --env-file supabase/.env.local --no-verify-jwt
-```
-
-The LiveKit API secret must stay server-side. The browser only receives short-lived room tokens from `supabase/functions/livekit-token`. Netlify/deployed function setup can wait until production.
+- **Host**: Click the "Play" icon below the YouTube player to start sharing tab audio.
+- **Participant**: Join the room and click "Start Listening" to sync audio playback.
 
 ## Project Notes
 
-- `PROJECT_CONTEXT.md` is the living implementation status document.
-- `Votify_V2_Architecture.md` is the product architecture and roadmap reference.
-- `supabase-schema-v2.sql` is the current database source of truth.
+- `PROJECT_CONTEXT.md`: Living implementation status and architectural details.
+- `Votify_V2_Architecture.md`: High-level product roadmap and original vision.
+- `supabase-schema-v2.sql`: Current database source of truth.
 - A host can have one active room and multiple paused rooms.
-- `.env` is local-only and should not be committed.
