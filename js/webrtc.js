@@ -201,18 +201,13 @@ async function captureTabAudio() {
     throw new Error('Your browser does not support tab audio sharing.');
   }
 
-  try {
-    return await navigator.mediaDevices.getDisplayMedia({
-      audio: true,
-      video: false,
-    });
-  } catch (err) {
-    if (err?.name === 'NotAllowedError') throw err;
-    return navigator.mediaDevices.getDisplayMedia({
-      audio: true,
-      video: true,
-    });
-  }
+  return await navigator.mediaDevices.getDisplayMedia({
+    audio: true,
+    video: {
+      displaySurface: 'browser',
+    },
+    preferCurrentTab: true,
+  });
 }
 
 function formatQuality(quality) {
