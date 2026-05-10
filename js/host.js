@@ -365,6 +365,7 @@ async function playNextSong() {
       // UI
       nowPlayingSection.classList.add('active');
       idleState.classList.add('hidden');
+      document.getElementById('now-playing-badge').classList.remove('hidden');
       nowPlayingTitle.textContent = song.title;
 
       player.loadVideoById(song.youtube_id);
@@ -375,6 +376,7 @@ async function playNextSong() {
       currentSongUpdatedAt = Date.now();
       nowPlayingSection.classList.remove('active');
       idleState.classList.remove('hidden');
+      document.getElementById('now-playing-badge').classList.add('hidden');
       if (player?.stopVideo) player.stopVideo();
       await broadcastState();
       await refreshQueue();

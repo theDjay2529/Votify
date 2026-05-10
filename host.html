@@ -72,35 +72,27 @@
 
     <!-- ── Center: Player ── -->
     <main class="host-main">
-      <!-- Host Search Bar -->
-      <section class="search-section hidden" id="host-search-wrapper" style="margin-bottom: var(--space-lg); position: relative; z-index: 100;">
-        <div class="search-wrapper glass-card">
-          <span class="search-icon">🔍</span>
-          <input
-            type="text"
-            id="host-search-input"
-            class="search-input"
-            placeholder="Search for a song to add..."
-            autocomplete="off"
-            aria-label="Search for songs"
-          />
-          <button class="search-clear hidden" id="host-search-clear" aria-label="Clear search">✕</button>
-          <div class="search-spinner hidden" id="host-search-spinner">
-            <div class="spinner"></div>
+      <!-- Always visible top bar -->
+      <div class="now-playing-header" style="display:flex; align-items:center; gap:var(--space-md); margin-bottom: var(--space-sm);">
+        <div class="now-playing-badge hidden" id="now-playing-badge">
+          <span class="pulse-dot"></span>
+          NOW PLAYING
+        </div>
+        
+        <!-- Host Search Bar -->
+        <div class="host-search-wrapper hidden" id="host-search-wrapper" style="display:flex; align-items:center; gap:8px; padding:0 12px; border-radius:9999px; height:30px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); width:240px; position:relative; z-index:100; transition:all 0.2s;">
+          <span style="font-size:0.75rem; color:#f87171;">🔍</span>
+          <input type="text" id="host-search-input" placeholder="Search to add..." style="flex:1; background:none; border:none; color:#f87171; outline:none; font-size:0.75rem; font-weight:600;" autocomplete="off"/>
+          <button class="search-clear hidden" id="host-search-clear" style="font-size:0.75rem; color:#f87171; cursor:pointer;">✕</button>
+          <div class="search-spinner hidden" id="host-search-spinner" style="transform:scale(0.6); margin-right:-4px; filter: hue-rotate(330deg);"><div class="spinner"></div></div>
+          
+          <div id="host-search-results" class="hidden" style="position:absolute; top:calc(100% + 12px); left:0; width:340px; max-height:400px; overflow-y:auto; background:var(--bg-glass); backdrop-filter:blur(20px); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:var(--space-sm); box-shadow:var(--shadow-lg);">
+            <div id="host-results-list"></div>
           </div>
         </div>
-        <section class="results-section hidden" id="host-search-results" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: var(--radius-md); margin-top: 8px; padding: var(--space-md); max-height: 400px; overflow-y: auto; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg);">
-          <div class="results-list" id="host-results-list"></div>
-        </section>
-      </section>
+      </div>
 
       <div class="now-playing-section" id="now-playing-section">
-        <div class="now-playing-header">
-          <div class="now-playing-badge">
-            <span class="pulse-dot"></span>
-            NOW PLAYING
-          </div>
-        </div>
         <div class="player-container" id="player-container">
           <div id="yt-player"></div>
           <div class="player-blur-overlay" id="player-blur-overlay"></div>

@@ -473,6 +473,9 @@ function setupRealtime() {
         refreshQueue();
       }
     })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms', filter: `id=eq.${roomData.id}` }, () => {
+      showStatusModal('👋', 'Room Closed', 'The host has closed this session. Thanks for listening!');
+    })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'room_bans', filter: `room_id=eq.${roomData.id}` }, (payload) => {
       if (payload.new.participant_token === participantToken) {
         showStatusModal('🚫', 'Kicked', 'You have been removed from this room.');
@@ -523,8 +526,8 @@ function setupRealtime() {
            setListenStatus('Playing in sync with host.');
         }
 
-        // Tighten drift threshold to 0.1s for extremely precise sync
-        if (Math.abs(expectedTime - myTime) > 0.1) {
+        // Tighten drift threshold to 0.4s for precise sync without breaking audio buffer
+        if (Math.abs(expectedTime - myTime) > 0.4) {
           listenPlayer.seekTo(expectedTime, true);
         }
       } else {
