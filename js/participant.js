@@ -164,6 +164,15 @@ function setupListenTogetherParticipant() {
 }
 
 async function startListening() {
+  if (isListeningActive && isListenPlayerReady) {
+    isListeningActive = false;
+    listenPlayer.stopVideo();
+    btnStartListening.textContent = 'Start Listening';
+    btnStartListening.disabled = false;
+    setListenStatus('Audio stopped. Click to resume.');
+    return;
+  }
+
   btnStartListening.disabled = true;
   btnStartListening.textContent = 'Connecting...';
   
@@ -191,7 +200,8 @@ async function startListening() {
       onReady: () => {
         isListenPlayerReady = true;
         listenPlayer.setVolume(listenVolume?.value ?? 100);
-        btnStartListening.textContent = 'Listening';
+        btnStartListening.textContent = 'Stop Listening';
+        btnStartListening.disabled = false;
         if (btnResyncAudio) btnResyncAudio.disabled = false;
         setListenStatus('Connected. Waiting for host playback.');
         if (currentSong) {
@@ -214,23 +224,6 @@ function setListenStatus(text, isError = false) {
 }
 
 function showPausedBanner(visible) {
-  let banner = document.getElementById('paused-banner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'paused-banner';
-    banner.style.cssText = `
-      position: fixed; top: 0; left: 0; right: 0; z-index: 9000;
-      background: linear-gradient(135deg, rgba(124,58,237,0.95), rgba(6,182,212,0.95));
-      backdrop-filter: blur(8px);
-      color: white; text-align: center;
-      padding: 14px 20px; font-weight: 600; font-size: 0.95rem;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-    `;
-    banner.innerHTML = '⏸️ The host has paused this session. Adding songs is disabled until they return. Hang tight! 🎵';
-    document.body.prepend(banner);
-  }
-  banner.style.display = visible ? 'flex' : 'none';
-
   // Toggle V2 Pause Overlay
   const overlay = document.getElementById('pause-overlay');
   if (overlay) overlay.classList.toggle('visible', visible);
@@ -467,7 +460,6 @@ function setupRealtime() {
       if (payload.new.status === 'ended' || payload.new.status === 'paused') {
         if (payload.new.status === 'ended') {
           showStatusModal('👋', 'Room Ended', 'The host has closed this session. Thanks for listening!');
-          setTimeout(() => { window.location.replace('join.html'); }, 3000);
         } else {
           roomIsPaused = true;
           roomData.status = 'paused';
@@ -522,9 +514,8 @@ function setupRealtime() {
       if (payload.songId !== currentSong?.id) return;
 
       if (payload.isPlaying) {
-        // Assume ~100ms network latency. Do NOT use Date.now() differences because 
-        // host and participant system clocks are rarely perfectly synchronized.
-        const expectedTime = payload.currentTime + 0.1;
+        // High precision sync: adjust by small latency estimate
+        const expectedTime = payload.currentTime + 0.05;
         const myTime = listenPlayer.getCurrentTime() || 0;
         
         if (listenPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
@@ -532,8 +523,8 @@ function setupRealtime() {
            setListenStatus('Playing in sync with host.');
         }
 
-        // Tighten drift threshold to 0.5s for better sync
-        if (Math.abs(expectedTime - myTime) > 0.5) {
+        // Tighten drift threshold to 0.1s for extremely precise sync
+        if (Math.abs(expectedTime - myTime) > 0.1) {
           listenPlayer.seekTo(expectedTime, true);
         }
       } else {

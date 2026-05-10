@@ -17,8 +17,11 @@
 
   <!-- V2: Pause Overlay -->
   <div class="pause-overlay" id="pause-overlay">
-    <div class="pause-overlay-icon">⏸️</div>
-    <div class="pause-overlay-text">Session Paused. Hang tight! 🎵</div>
+    <div class="pause-overlay-icon">
+      <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </div>
+    <div class="pause-overlay-text">Session Paused</div>
+    <div class="pause-overlay-sub">The host has stepped away. Audio will resume shortly!</div>
   </div>
 
   <div class="reconnect-banner" id="reconnect-banner">⚠️ Reconnecting to server...</div>
@@ -69,6 +72,28 @@
 
     <!-- ── Center: Player ── -->
     <main class="host-main">
+      <!-- Host Search Bar -->
+      <section class="search-section hidden" id="host-search-wrapper" style="margin-bottom: var(--space-lg); position: relative; z-index: 100;">
+        <div class="search-wrapper glass-card">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            id="host-search-input"
+            class="search-input"
+            placeholder="Search for a song to add..."
+            autocomplete="off"
+            aria-label="Search for songs"
+          />
+          <button class="search-clear hidden" id="host-search-clear" aria-label="Clear search">✕</button>
+          <div class="search-spinner hidden" id="host-search-spinner">
+            <div class="spinner"></div>
+          </div>
+        </div>
+        <section class="results-section hidden" id="host-search-results" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: var(--radius-md); margin-top: 8px; padding: var(--space-md); max-height: 400px; overflow-y: auto; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg);">
+          <div class="results-list" id="host-results-list"></div>
+        </section>
+      </section>
+
       <div class="now-playing-section" id="now-playing-section">
         <div class="now-playing-header">
           <div class="now-playing-badge">
@@ -82,13 +107,6 @@
         </div>
         <div class="now-playing-info" id="now-playing-info">
           <h2 class="now-playing-title" id="now-playing-title">Waiting for songs...</h2>
-          
-          <!-- V2: Host Search Bar (Listen Together Only) -->
-          <div class="host-search-wrapper glass-card hidden" id="host-search-wrapper" style="flex: 1; max-width: 300px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin-left: auto; position: relative;">
-            <span style="font-size: 0.9rem;">🔍</span>
-            <input type="text" id="host-search-input" placeholder="Add a song..." style="flex: 1; font-size: 0.85rem; background: none; border: none; color: white; outline: none;" />
-            <div id="host-search-results" class="glass-card hidden" style="position: absolute; top: 100%; right: 0; width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000; margin-top: 8px; padding: 8px;"></div>
-          </div>
 
           <div style="display:flex;gap:8px;">
             <button id="btn-start-listen-audio" class="btn-icon hidden" title="Stream Audio to Room" style="background:rgba(255,255,255,0.1);border-radius:50%;padding:8px;width:36px;height:36px;">

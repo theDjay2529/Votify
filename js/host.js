@@ -82,10 +82,8 @@ async function init() {
     roomData.status = 'active';
   }
 
-  // 8. Host Search (Listen Together Only)
-  if (roomData.mode === 'listen_together') {
-    setupHostSearch();
-  }
+  // 8. Host Search
+  setupHostSearch();
 
   // 9. Realtime & Presence
   setupRealtime();
@@ -98,6 +96,9 @@ async function setupHostSearch() {
   const wrapper = document.getElementById('host-search-wrapper');
   const input = document.getElementById('host-search-input');
   const results = document.getElementById('host-search-results');
+  const resultsList = document.getElementById('host-results-list');
+  const spinner = document.getElementById('host-search-spinner');
+  const clear = document.getElementById('host-search-clear');
   if (!wrapper || !input || !results) return;
 
   wrapper.classList.remove('hidden');
@@ -105,32 +106,82 @@ async function setupHostSearch() {
   let searchTimeout = null;
   input.addEventListener('input', () => {
     const q = input.value.trim();
-    clearTimeout(searchTimeout);
-    if (!q) { results.classList.add('hidden'); return; }
-    searchTimeout = setTimeout(async () => {
-      try {
-        const songs = await searchYouTube(q);
-        renderHostSearchResults(songs);
-      } catch (err) {
-        console.error('Host search error:', err);
-      }
-    }, 400);
+    if (q) {
+      clear?.classList.remove('hidden');
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(async () => {
+        try {
+          spinner?.classList.remove('hidden');
+          results.classList.remove('hidden');
+          resultsList.innerHTML = `
+            ${[1,2,3].map(() => `
+              <div class="result-skeleton" style="display:flex; gap:16px; margin-bottom:8px;">
+                <div class="skeleton skeleton-thumb" style="width:100px; height:56px; border-radius:8px;"></div>
+                <div class="skeleton-info" style="flex:1;">
+                  <div class="skeleton skeleton-text" style="height:14px; margin-bottom:8px;"></div>
+                  <div class="skeleton skeleton-text short" style="height:14px; width:60%;"></div>
+                </div>
+              </div>
+            `).join('')}
+          `;
+          const songs = await searchYouTube(q);
+          renderHostSearchResults(songs);
+        } catch (err) {
+          console.error('Host search error:', err);
+          resultsList.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Search failed</p>';
+        } finally {
+          spinner?.classList.add('hidden');
+        }
+      }, 400);
+    } else {
+      clear?.classList.add('hidden');
+      results.classList.add('hidden');
+      resultsList.innerHTML = '';
+    }
+  });
+
+  clear?.addEventListener('click', () => {
+    input.value = '';
+    clear.classList.add('hidden');
+    results.classList.add('hidden');
+    resultsList.innerHTML = '';
+    input.focus();
   });
 }
 
 function renderHostSearchResults(songs) {
   const results = document.getElementById('host-search-results');
-  if (!songs.length) { results.classList.add('hidden'); return; }
+  const resultsList = document.getElementById('host-results-list');
+  if (!songs.length) { 
+    resultsList.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:var(--space-md);">No results found</p>'; 
+    return; 
+  }
   results.classList.remove('hidden');
-  results.innerHTML = songs.map(s => `
-    <div class="host-search-item" style="display:flex; gap:8px; align-items:center; padding:6px; cursor:pointer; border-radius:4px; transition:background 0.2s;" data-ytid="${s.youtube_id}" data-title="${escapeAttr(s.title)}" data-thumb="${escapeAttr(s.thumbnail_url)}">
-      <img src="${s.thumbnail_url}" style="width:40px; height:22px; border-radius:2px; object-fit:cover;" />
-      <div style="font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;">${escapeHtml(s.title)}</div>
-      <span style="font-size:0.8rem;">➕</span>
+  resultsList.innerHTML = songs.map(r => `
+    <div class="result-card glass-card-hover host-search-item"
+         style="display:flex; align-items:center; gap:16px; padding:12px; cursor:pointer; border-radius:12px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.03); transition:all 0.2s;"
+         data-ytid="${r.youtube_id}"
+         data-title="${escapeAttr(r.title)}"
+         data-thumb="${escapeAttr(r.thumbnail_url)}">
+      <img class="result-thumb" src="${r.thumbnail_url}" style="width:100px; height:56px; border-radius:8px; object-fit:cover; flex-shrink:0;" />
+      <div class="result-info" style="flex:1; min-width:0;">
+        <div class="result-title" style="font-size:0.9rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(r.title)}</div>
+        <div class="result-author" style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(r.author || '')}</div>
+      </div>
+      <div class="result-add-icon" style="font-size:1.3rem; flex-shrink:0; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(168,85,247,0.15); transition:all 0.2s;">➕</div>
     </div>
   `).join('');
 
-  results.querySelectorAll('.host-search-item').forEach(item => {
+  resultsList.querySelectorAll('.host-search-item').forEach(item => {
+    item.addEventListener('mouseover', () => {
+      item.style.background = 'rgba(255,255,255,0.1)';
+      item.querySelector('.result-add-icon').style.background = 'var(--accent-primary)';
+    });
+    item.addEventListener('mouseout', () => {
+      item.style.background = 'rgba(255,255,255,0.03)';
+      item.querySelector('.result-add-icon').style.background = 'rgba(168,85,247,0.15)';
+    });
+
     item.addEventListener('click', async () => {
       const { ytid, title, thumb } = item.dataset;
       try {
@@ -145,6 +196,7 @@ function renderHostSearchResults(songs) {
         if (error) throw error;
         showToast(`Added "${title}"`, 'success');
         document.getElementById('host-search-input').value = '';
+        document.getElementById('host-search-clear')?.classList.add('hidden');
         results.classList.add('hidden');
         refreshQueue();
         if (syncChannel) syncChannel.send({ type: 'broadcast', event: 'queue_update', payload: {} });
@@ -154,18 +206,6 @@ function renderHostSearchResults(songs) {
     });
   });
 }
-
-// Add hover effect via JS since it's injected
-document.addEventListener('mouseover', (e) => {
-  if (e.target.closest('.host-search-item')) {
-    e.target.closest('.host-search-item').style.background = 'rgba(255,255,255,0.1)';
-  }
-});
-document.addEventListener('mouseout', (e) => {
-  if (e.target.closest('.host-search-item')) {
-    e.target.closest('.host-search-item').style.background = '';
-  }
-});
 
 // Helper for host search
 async function searchYouTube(query) {
@@ -533,7 +573,7 @@ function setupRealtime() {
     if (syncInterval) clearInterval(syncInterval);
     syncInterval = setInterval(() => {
       broadcastPlaybackState();
-    }, 3000); // Sync every 3 seconds
+    }, 1000); // Sync every 1 second
   }
 }
 

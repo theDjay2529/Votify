@@ -277,14 +277,14 @@ ul, ol { list-style: none; }
   position: fixed;
   inset: 0;
   z-index: 9500;
-  background: rgba(10, 10, 15, 0.4);
-  backdrop-filter: blur(12px) grayscale(0.5);
-  -webkit-backdrop-filter: blur(12px) grayscale(0.5);
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-xl);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--duration-normal) var(--ease-out);
@@ -294,17 +294,37 @@ ul, ol { list-style: none; }
   pointer-events: auto;
 }
 .pause-overlay-icon {
-  font-size: 4rem;
-  animation: float 3s ease-in-out infinite;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-gradient);
+  border-radius: 50%;
+  color: white;
+  box-shadow: var(--shadow-glow-purple);
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+.pause-overlay-icon svg {
+  width: 32px;
+  height: 32px;
+  fill: currentColor;
 }
 .pause-overlay-text {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: white;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
   text-align: center;
-  max-width: 300px;
-  line-height: 1.4;
-  text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  max-width: 400px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+.pause-overlay-sub {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 350px;
+  margin-top: -10px;
 }
 
 /* ── Spinner ── */
