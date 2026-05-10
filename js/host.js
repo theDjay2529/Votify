@@ -80,16 +80,120 @@ async function init() {
   if (roomData.status === 'paused') {
     await activateRoom(roomData.id);
     roomData.status = 'active';
-    showToast('Room reactivated! Participants can now join again. 🎧', 'success');
-  } else {
-    showToast('Host console active 🎧', 'success');
   }
 
-  // 8. Realtime & Presence
+  // 8. Host Search (Listen Together Only)
+  if (roomData.mode === 'listen_together') {
+    setupHostSearch();
+  }
+
+  // 9. Realtime & Presence
   setupRealtime();
 
-  // 9. Visualizer
+  // 10. Visualizer
   initVisualizer();
+}
+
+async function setupHostSearch() {
+  const wrapper = document.getElementById('host-search-wrapper');
+  const input = document.getElementById('host-search-input');
+  const results = document.getElementById('host-search-results');
+  if (!wrapper || !input || !results) return;
+
+  wrapper.classList.remove('hidden');
+
+  let searchTimeout = null;
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(searchTimeout);
+    if (!q) { results.classList.add('hidden'); return; }
+    searchTimeout = setTimeout(async () => {
+      try {
+        const songs = await searchYouTube(q);
+        renderHostSearchResults(songs);
+      } catch (err) {
+        console.error('Host search error:', err);
+      }
+    }, 400);
+  });
+}
+
+function renderHostSearchResults(songs) {
+  const results = document.getElementById('host-search-results');
+  if (!songs.length) { results.classList.add('hidden'); return; }
+  results.classList.remove('hidden');
+  results.innerHTML = songs.map(s => `
+    <div class="host-search-item" style="display:flex; gap:8px; align-items:center; padding:6px; cursor:pointer; border-radius:4px; transition:background 0.2s;" data-ytid="${s.youtube_id}" data-title="${escapeAttr(s.title)}" data-thumb="${escapeAttr(s.thumbnail_url)}">
+      <img src="${s.thumbnail_url}" style="width:40px; height:22px; border-radius:2px; object-fit:cover;" />
+      <div style="font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;">${escapeHtml(s.title)}</div>
+      <span style="font-size:0.8rem;">➕</span>
+    </div>
+  `).join('');
+
+  results.querySelectorAll('.host-search-item').forEach(item => {
+    item.addEventListener('click', async () => {
+      const { ytid, title, thumb } = item.dataset;
+      try {
+        const { data, error } = await supabase.from('queue').insert({
+          room_id: roomData.id,
+          youtube_id: ytid,
+          title: title,
+          thumbnail_url: thumb,
+          added_by: 'Host',
+          upvotes: 1, // Host auto-upvotes
+        }).select();
+        if (error) throw error;
+        showToast(`Added "${title}"`, 'success');
+        document.getElementById('host-search-input').value = '';
+        results.classList.add('hidden');
+        refreshQueue();
+        if (syncChannel) syncChannel.send({ type: 'broadcast', event: 'queue_update', payload: {} });
+      } catch (err) {
+        showToast('Failed to add song', 'error');
+      }
+    });
+  });
+}
+
+// Add hover effect via JS since it's injected
+document.addEventListener('mouseover', (e) => {
+  if (e.target.closest('.host-search-item')) {
+    e.target.closest('.host-search-item').style.background = 'rgba(255,255,255,0.1)';
+  }
+});
+document.addEventListener('mouseout', (e) => {
+  if (e.target.closest('.host-search-item')) {
+    e.target.closest('.host-search-item').style.background = '';
+  }
+});
+
+// Helper for host search
+async function searchYouTube(query) {
+  // Simple fetch wrapper mirroring participant.js search logic
+  // Since we're in host.js, we'll re-implement or move this later to a shared module
+  const PIPED_INSTANCES = ['https://api.piped.private.coffee', 'https://pipedapi.kavin.rocks'];
+  for (const instance of PIPED_INSTANCES) {
+    try {
+      const res = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+      return data.items.filter(v => v.type === 'stream').slice(0, 5).map(v => ({
+        youtube_id: (v.url || '').replace('/watch?v=', '') || v.videoId,
+        title: v.title,
+        thumbnail_url: v.thumbnail || `https://i.ytimg.com/vi/${(v.url || '').replace('/watch?v=', '')}/mqdefault.jpg`,
+      }));
+    } catch { continue; }
+  }
+  return [];
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+function escapeAttr(str) {
+  return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // Removed WebRTC Audio Functions
@@ -619,6 +723,8 @@ document.getElementById('btn-end-session').addEventListener('click', async () =>
       if (syncInterval) clearInterval(syncInterval);
       await pauseRoom(roomData.id);
       roomData.status = 'paused';
+      // Toggle V2 Pause Overlay
+      document.getElementById('pause-overlay')?.classList.add('visible');
       // Broadcast after the DB write so participants and persisted state agree.
       if (syncChannel) {
         await syncChannel.send({ type: 'broadcast', event: 'room_status_update', payload: { status: 'paused' } });

@@ -15,6 +15,12 @@
   <div class="bg-glow purple"></div>
   <div class="bg-glow cyan"></div>
 
+  <!-- V2: Pause Overlay -->
+  <div class="pause-overlay" id="pause-overlay">
+    <div class="pause-overlay-icon">⏸️</div>
+    <div class="pause-overlay-text">The host has paused the session. Audio will resume shortly!</div>
+  </div>
+
   <!-- Reconnecting banner -->
   <div class="reconnect-banner" id="reconnect-banner">
     ⚠️ Reconnecting to server...
@@ -140,6 +146,19 @@
       <h2 class="identity-title" id="status-title">Room Ended</h2>
       <p class="identity-desc" id="status-desc">This session has been closed by the host.</p>
       <a href="join.html" class="btn-primary">Join Another Room</a>
+    </div>
+  </div>
+
+  <!-- V2: Leave Confirmation Modal -->
+  <div class="identity-modal-overlay hidden" id="leave-confirm-modal">
+    <div class="identity-card glass-card">
+      <div class="identity-icon">🚪</div>
+      <h2 class="identity-title">Leave Room?</h2>
+      <p class="identity-desc">Are you sure you want to exit this session?</p>
+      <div class="modal-actions" style="display: flex; gap: 12px; justify-content: center;">
+        <button id="btn-stay-room" class="btn-secondary" style="flex: 1;">Stay</button>
+        <button id="btn-leave-room" class="btn-primary" style="flex: 1; background: #ef4444;">Leave</button>
+      </div>
     </div>
   </div>
 

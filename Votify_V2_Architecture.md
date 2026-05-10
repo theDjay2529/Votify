@@ -1101,16 +1101,26 @@ Foundation for everything. Do not proceed until this is end-to-end tested.
 
 ---
 
-### Phase 2 — Web: Listen Together (4-5 days)
+### Phase 2 — Web: Listen Together (COMPLETED ✅)
 
-- LiveKit Cloud account + Edge Function for token generation
-- Host: `getDisplayMedia` audio capture + LiveKit publish
-- Participant: LiveKit subscribe + audio playback
-- Resync button on participant screen
-- Listen Together UI (waveform, participant count, volume)
-- Graceful fallback if LiveKit unavailable
+Finalized the "Silent Disco" architecture using Supabase Realtime for high-precision signaling and state synchronization.
 
-**Deliverable:** Listen Together works on web. Host streams from browser tab, participants hear in sync.
+- **Realtime Sync Engine**: Implemented a timestamp-validated `updatedAt` system to prevent state reverts from ghost presences.
+- **Listen Together UI**:
+    - **Paused State**: Integrated a dulled, blurred glass-pane overlay (`.pause-overlay`) for both host and participants.
+    - **Host Controls**: Added a search bar directly on the host projector screen for "on-the-fly" song additions.
+    - **Participant Safety**: Implemented step-by-step backtracking with a "Leave Room?" confirmation modal to prevent accidental exits.
+- **Synchronized Playback**: Reduced sync drift threshold to 0.5s and removed redundant toast notifications for a smoother experience.
+
+**Deliverable:** Listen Together is production-ready. Host syncs playback state via Broadcast events, and participants follow in near-realtime with visual feedback.
+
+---
+
+### Phase 3 — Web: PWA + Polish (Next Steps)
+
+- **Service Workers**: Implement `manifest.json` and service workers for "Add to Home Screen" support.
+- **Visual Polish**: Audit all modals and empty states for design consistency with the global glassmorphism theme.
+- **Performance**: Investigate residual audio jitter in high-latency network conditions.
 
 ---
 

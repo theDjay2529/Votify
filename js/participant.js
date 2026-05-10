@@ -99,6 +99,45 @@ async function init() {
   if (!roomIsPaused) {
     showToast(`Joined ${roomData.name}! 🎧`, 'success');
   }
+
+  // Handle Back Gesture / Back Button
+  window.history.pushState({ page: 'room' }, '');
+  window.addEventListener('popstate', (e) => {
+    // If search results are visible, close them first
+    if (!resultsSection.classList.contains('hidden')) {
+      resultsSection.classList.add('hidden');
+      searchInput.value = '';
+      searchClear.classList.add('hidden');
+      resultsList.innerHTML = '';
+      window.history.pushState({ page: 'room' }, '');
+      return;
+    }
+
+    // Otherwise, show leave confirmation
+    showLeaveConfirm();
+  });
+}
+
+function showLeaveConfirm() {
+  const modal = document.getElementById('leave-confirm-modal');
+  modal.classList.remove('hidden');
+  
+  const stayBtn = document.getElementById('btn-stay-room');
+  const leaveBtn = document.getElementById('btn-leave-room');
+
+  const onStay = () => {
+    modal.classList.add('hidden');
+    window.history.pushState({ page: 'room' }, '');
+    stayBtn.removeEventListener('click', onStay);
+    leaveBtn.removeEventListener('click', onLeave);
+  };
+
+  const onLeave = () => {
+    window.location.replace('/join.html');
+  };
+
+  stayBtn.addEventListener('click', onStay);
+  leaveBtn.addEventListener('click', onLeave);
 }
 
 // ── Paused Banner ─────────────────────────────────────────────
@@ -191,6 +230,10 @@ function showPausedBanner(visible) {
     document.body.prepend(banner);
   }
   banner.style.display = visible ? 'flex' : 'none';
+
+  // Toggle V2 Pause Overlay
+  const overlay = document.getElementById('pause-overlay');
+  if (overlay) overlay.classList.toggle('visible', visible);
 
   // Disable search input when paused
   if (searchInput) searchInput.disabled = visible;
@@ -426,19 +469,15 @@ function setupRealtime() {
           showStatusModal('👋', 'Room Ended', 'The host has closed this session. Thanks for listening!');
           setTimeout(() => { window.location.replace('join.html'); }, 3000);
         } else {
-          // Paused
           roomIsPaused = true;
           roomData.status = 'paused';
           showPausedBanner(true);
-          showToast('Host has paused the session. 🎵', 'info');
         }
       } else if (payload.new.status === 'active') {
-        // Host rejoined and reactivated
         roomIsPaused = false;
         roomData.status = 'active';
         showPausedBanner(false);
         if (roomData.mode === 'listen_together') setListenStatus('Connected. Waiting for host audio.');
-        showToast('Host is back! Session resumed. 🎧', 'success');
         refreshQueue();
       }
     })
@@ -475,7 +514,6 @@ function setupRealtime() {
         roomData.status = 'active';
         showPausedBanner(false);
         if (roomData.mode === 'listen_together') setListenStatus('Connected. Waiting for host audio.');
-        showToast('Host is back! Session resumed. 🎧', 'success');
         refreshQueue();
       }
     })

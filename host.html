@@ -15,6 +15,12 @@
   <div class="bg-glow purple"></div>
   <div class="bg-glow cyan"></div>
 
+  <!-- V2: Pause Overlay -->
+  <div class="pause-overlay" id="pause-overlay">
+    <div class="pause-overlay-icon">⏸️</div>
+    <div class="pause-overlay-text">Session Paused. Hang tight! 🎵</div>
+  </div>
+
   <div class="reconnect-banner" id="reconnect-banner">⚠️ Reconnecting to server...</div>
   <div class="toast-container" id="toast-container"></div>
 
@@ -76,6 +82,14 @@
         </div>
         <div class="now-playing-info" id="now-playing-info">
           <h2 class="now-playing-title" id="now-playing-title">Waiting for songs...</h2>
+          
+          <!-- V2: Host Search Bar (Listen Together Only) -->
+          <div class="host-search-wrapper glass-card hidden" id="host-search-wrapper" style="flex: 1; max-width: 300px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin-left: auto; position: relative;">
+            <span style="font-size: 0.9rem;">🔍</span>
+            <input type="text" id="host-search-input" placeholder="Add a song..." style="flex: 1; font-size: 0.85rem; background: none; border: none; color: white; outline: none;" />
+            <div id="host-search-results" class="glass-card hidden" style="position: absolute; top: 100%; right: 0; width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000; margin-top: 8px; padding: 8px;"></div>
+          </div>
+
           <div style="display:flex;gap:8px;">
             <button id="btn-start-listen-audio" class="btn-icon hidden" title="Stream Audio to Room" style="background:rgba(255,255,255,0.1);border-radius:50%;padding:8px;width:36px;height:36px;">
               <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5v14l11-7z"/></svg>

@@ -272,6 +272,41 @@ ul, ol { list-style: none; }
 .bg-glow.purple { background: var(--accent-primary); top: -200px; right: -100px; }
 .bg-glow.cyan { background: var(--accent-secondary); bottom: -200px; left: -100px; }
 
+/* ── Pause Overlay ── */
+.pause-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: rgba(10, 10, 15, 0.4);
+  backdrop-filter: blur(12px) grayscale(0.5);
+  -webkit-backdrop-filter: blur(12px) grayscale(0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+.pause-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.pause-overlay-icon {
+  font-size: 4rem;
+  animation: float 3s ease-in-out infinite;
+}
+.pause-overlay-text {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: white;
+  text-align: center;
+  max-width: 300px;
+  line-height: 1.4;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
 /* ── Spinner ── */
 .spinner {
   width: 24px;
@@ -320,6 +355,10 @@ ul, ol { list-style: none; }
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }
+}
+
+.host-search-item:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 @keyframes rotate {
   from { transform: translateY(-50%) rotate(0deg); }
