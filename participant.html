@@ -90,9 +90,9 @@
       </div>
       <label class="listen-volume">
         <span>Volume</span>
-        <input type="range" id="listen-volume" min="0" max="1" step="0.05" value="1" />
+        <input type="range" id="listen-volume" min="0" max="100" step="5" value="100" />
       </label>
-      <div class="listen-audio-container" id="listen-audio-container"></div>
+      <div id="listen-yt-container" style="display: none; pointer-events: none;"></div>
     </section>
 
     <!-- Queue Section (V2: shows net score and dual vote buttons) -->
@@ -143,6 +143,7 @@
     </div>
   </div>
 
+  <script src="https://www.youtube.com/iframe_api"></script>
   <script type="module" src="js/participant.js?v=7"></script>
 </body>
 </html>

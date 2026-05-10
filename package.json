@@ -10,9 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1",
-    "livekit-client": "^2.18.9",
-    "livekit-server-sdk": "^2.15.2"
+    "@supabase/supabase-js": "^2.49.1"
   },
   "devDependencies": {
     "vite": "^6.3.2"

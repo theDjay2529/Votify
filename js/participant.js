@@ -8,7 +8,6 @@ import { supabase } from './supabase-config.js';
 import { getOrCreateGuestToken, getUser } from './auth.js';
 import { getRoom, upsertParticipant, isParticipantBanned } from './rooms.js';
 import { castUpvote, castDownvote, removeVote, submitSkipVote, getVoteForItem, getSkipVoteCount } from './voting.js';
-import { ListenTogetherConnection, isListenTogetherConfigured } from './webrtc.js';
 
 // ── State ──
 let roomCode = null;
@@ -22,7 +21,9 @@ let presenceCount = 1;
 let searchTimeout = null;
 let syncChannel = null; // MODULE-LEVEL — shared by all functions
 let roomIsPaused = false;
-let listenConnection = null;
+let listenPlayer = null;
+let isListenPlayerReady = false;
+let isListeningActive = false;
 
 // ── DOM Elements ──
 const searchInput     = document.getElementById('search-input');
@@ -102,75 +103,68 @@ async function init() {
 // ── Paused Banner ─────────────────────────────────────────────
 function setupListenTogetherParticipant() {
   if (roomData.mode !== 'listen_together') return;
-
   listenPanel?.classList.remove('hidden');
-  if (!isListenTogetherConfigured()) {
-    setListenStatus('Listen Together is not configured for this deployment.', true);
-    if (btnStartListening) btnStartListening.disabled = true;
-    return;
-  }
-
-  listenConnection = new ListenTogetherConnection({
-    roomCode,
-    participantId: participantToken,
-    displayName,
-    isHost: false,
-    audioContainer: listenAudioContainer,
-    onStatus: updateListenStatus,
-    onAudioTrack: () => {
-      listenConnection?.setVolume(listenVolume?.value ?? 1);
-      setListenStatus('Live audio connected.');
-    },
-  });
 
   btnStartListening?.addEventListener('click', startListening);
-  btnResyncAudio?.addEventListener('click', resyncListening);
+  
+  // Resync button allows manual nudge
+  btnResyncAudio?.addEventListener('click', () => {
+     if (listenPlayer && isListenPlayerReady && currentSong) {
+        listenPlayer.pauseVideo();
+        setListenStatus('Resyncing...');
+        // The next broadcast ping from host will resume it in sync.
+     }
+  });
+
   listenVolume?.addEventListener('input', (e) => {
-    listenConnection?.setVolume(e.target.value);
+    if (listenPlayer && isListenPlayerReady) {
+      listenPlayer.setVolume(e.target.value);
+    }
   });
 }
 
 async function startListening() {
-  if (!listenConnection) return;
   btnStartListening.disabled = true;
   btnStartListening.textContent = 'Connecting...';
-  try {
-    await listenConnection.connect();
-    await listenConnection.startAudio();
-    listenConnection.setVolume(listenVolume?.value ?? 1);
-    btnStartListening.textContent = 'Listening';
-    if (btnResyncAudio) btnResyncAudio.disabled = false;
-  } catch (err) {
-    console.error('[Votify] Listen Together participant error:', err);
-    setListenStatus(err.message || 'Could not connect to room audio.', true);
-    btnStartListening.disabled = false;
-    btnStartListening.textContent = 'Try Again';
+  
+  if (!window.YT || !window.YT.Player) {
+    await new Promise(r => {
+      const interval = setInterval(() => {
+        if (window.YT && window.YT.Player) { clearInterval(interval); r(); }
+      }, 100);
+    });
   }
-}
 
-async function resyncListening() {
-  if (!listenConnection) return;
-  btnResyncAudio.disabled = true;
-  setListenStatus('Resyncing...');
-  try {
-    await listenConnection.resync();
-    listenConnection.setVolume(listenVolume?.value ?? 1);
-    setListenStatus('Live audio connected.');
-  } catch (err) {
-    setListenStatus(err.message || 'Resync failed.', true);
-  } finally {
-    btnResyncAudio.disabled = false;
-  }
-}
-
-function updateListenStatus(status) {
-  const labels = {
-    connecting: 'Connecting to room audio...',
-    connected: 'Connected. Waiting for host audio.',
-    reconnecting: 'Reconnecting room audio...',
-    disconnected: 'Audio disconnected.',
-  };
-  setListenStatus(labels[status] || status);
+  isListeningActive = true;
+  
+  listenPlayer = new YT.Player('listen-yt-container', {
+    height: '0',
+    width: '0',
+    playerVars: {
+      autoplay: 1,
+      controls: 0,
+      disablekb: 1,
+      fs: 0,
+      playsinline: 1
+    },
+    events: {
+      onReady: () => {
+        isListenPlayerReady = true;
+        listenPlayer.setVolume(listenVolume?.value ?? 100);
+        btnStartListening.textContent = 'Listening';
+        if (btnResyncAudio) btnResyncAudio.disabled = false;
+        setListenStatus('Connected. Waiting for host playback.');
+        if (currentSong) {
+          listenPlayer.loadVideoById(currentSong.youtube_id);
+          listenPlayer.pauseVideo();
+        }
+      },
+      onError: (e) => {
+        console.error('[Votify] Participant player error:', e.data);
+        setListenStatus('Error loading audio. Will retry next song.', true);
+      }
+    }
+  });
 }
 
 function setListenStatus(text, isError = false) {
@@ -385,6 +379,7 @@ function updateNowPlaying(song) {
   if (!song) {
     nowPlayingMini.classList.add('hidden');
     currentSong = null;
+    if (isListeningActive && isListenPlayerReady) listenPlayer.stopVideo();
     renderQueue();
     return;
   }
@@ -394,6 +389,13 @@ function updateNowPlaying(song) {
   if (npmTitle) npmTitle.textContent = song.title;
   if (skipBtn) skipBtn.disabled = roomIsPaused;
   updateSkipProgress();
+
+  if (changed && isListeningActive && isListenPlayerReady) {
+    listenPlayer.loadVideoById(song.youtube_id);
+    listenPlayer.pauseVideo(); // Wait for sync ping to play
+    setListenStatus('Loaded next song. Waiting for host playback.');
+  }
+
   if (changed) refreshQueue();
   else renderQueue();
 }
@@ -455,6 +457,7 @@ function setupRealtime() {
         roomIsPaused = true;
         roomData.status = 'paused';
         showPausedBanner(true);
+        if (isListeningActive && isListenPlayerReady) listenPlayer.pauseVideo();
         showToast('Host has paused the session. 🎵', 'info');
       } else if (payload?.status === 'active') {
         roomIsPaused = false;
@@ -463,6 +466,31 @@ function setupRealtime() {
         if (roomData.mode === 'listen_together') setListenStatus('Connected. Waiting for host audio.');
         showToast('Host is back! Session resumed. 🎧', 'success');
         refreshQueue();
+      }
+    })
+    .on('broadcast', { event: 'sync_playback' }, ({ payload }) => {
+      if (!isListeningActive || !isListenPlayerReady || !listenPlayer) return;
+      if (payload.songId !== currentSong?.id) return;
+
+      if (payload.isPlaying) {
+        // Calculate what the time SHOULD be right now based on host's ping
+        const expectedTime = payload.currentTime + ((Date.now() - payload.timestamp) / 1000);
+        const myTime = listenPlayer.getCurrentTime() || 0;
+        
+        if (listenPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
+           listenPlayer.playVideo();
+           setListenStatus('Playing in sync with host.');
+        }
+
+        // If drift is > 1.5 seconds, resync
+        if (Math.abs(expectedTime - myTime) > 1.5) {
+          listenPlayer.seekTo(expectedTime, true);
+        }
+      } else {
+        if (listenPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+          listenPlayer.pauseVideo();
+          setListenStatus('Host paused playback.');
+        }
       }
     })
     .on('broadcast', { event: 'skip_update' }, () => {

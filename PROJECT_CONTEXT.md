@@ -19,7 +19,7 @@ Votify is a real-time, crowd-controlled YouTube music experience. A Host starts 
 | Backend/DB | Supabase (Postgres + Auth + Realtime) |
 | Hosting | Vercel (Production) |
 | Playback | YouTube IFrame Player API |
-| Listen Together | LiveKit Cloud + Vercel Serverless Function token minting |
+| Listen Together | Silent Disco (Clock-synced State Broadcasting via Realtime) |
 | Realtime | Supabase Channels (Presence + Broadcast + Postgres Changes) |
 | Search | Piped API (Primary) → Invidious (Fallback) |
 
@@ -43,10 +43,8 @@ Votify is a real-time, crowd-controlled YouTube music experience. A Host starts 
 - `js/host.js` — Playback authority, presence broadcaster, history tab.
 - `js/participant.js` — Search, add songs, vote, queue rendering (mirrors host exactly).
 - `js/home.js` — Dashboard logic: active + paused rooms, create room modal.
-- `js/webrtc.js` — LiveKit browser wrapper for Listen Together connect/publish/subscribe/resync.
 
-### API & Functions
-- `api/livekit-token.js` — **Vercel Function**: Node.js serverless function that mints LiveKit JWTs after validating room mode and host publish rights.
+### API & Config
 - `vercel.json` — Deployment config for routing, rewrites, and API handling.
 - `netlify.toml` — (Legacy/Backup) Netlify deployment config.
 
@@ -96,10 +94,10 @@ All clients join a single channel: `room-{ROOM_CODE}`.
 | Postgres Changes | `rooms UPDATE` | Detect pause/active/ended status (Fallback) |
 | Postgres Changes | `room_bans INSERT` | Backup kick enforcement |
 | Presence | `sync` | Host tracks `currentSong` & `roomStatus` for new joiners |
-| Broadcast | `queue_update` | **Instant** queue refresh across all clients |
 | Broadcast | `now_playing` | **Instant** song sync when track changes |
-| Broadcast | `room_status_update` | **Instant** pause/resume UI triggers |
-| Broadcast | `kick` | **Instant** kick enforcement |
+| Broadcast | `sync_playback` | Periodically sent by the host in Listen Together mode to sync participants' timelines |
+| Broadcast | `room_status_update` | **Instant** pause/resume sync |
+| Broadcast | `kick` | **Instant** removal of banned participants |
 
 > **Critical Rule**: Postgres Changes can have 200-2000ms latency. Broadcasts are sub-100ms. Always send a Broadcast ping *after* any DB write that needs instant UI feedback.
 
