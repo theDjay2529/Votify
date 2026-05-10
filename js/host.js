@@ -222,17 +222,16 @@ async function playNextSong() {
       nowPlayingTitle.textContent = song.title;
 
       player.loadVideoById(song.youtube_id);
-      // Update Presence & Signaling after local state is fully committed.
-      await broadcastState();
-      await refreshQueue();
+      broadcastState();
+      refreshQueue();
       broadcastPlaybackState();
     } else {
       currentSong = null;
       nowPlayingSection.classList.remove('active');
       idleState.classList.remove('hidden');
       if (player?.stopVideo) player.stopVideo();
-      await broadcastState();
-      await refreshQueue();
+      broadcastState();
+      refreshQueue();
       broadcastPlaybackState();
     }
   } catch (err) {
@@ -435,17 +434,15 @@ function setupRealtime() {
 
 async function broadcastState() {
   if (syncChannel) {
-    // Presence: persistent state for new joiners
-    await syncChannel.track({
-      isHost: true,
-      currentSong,
-      roomStatus: roomData.status
-    });
-    // Broadcast: instant delivery for active participants
     syncChannel.send({
       type: 'broadcast',
       event: 'now_playing',
       payload: { currentSong }
+    });
+    syncChannel.track({
+      isHost: true,
+      currentSong,
+      roomStatus: roomData.status
     });
   }
 }

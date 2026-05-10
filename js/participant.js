@@ -473,8 +473,9 @@ function setupRealtime() {
       if (payload.songId !== currentSong?.id) return;
 
       if (payload.isPlaying) {
-        // Calculate what the time SHOULD be right now based on host's ping
-        const expectedTime = payload.currentTime + ((Date.now() - payload.timestamp) / 1000);
+        // Assume ~100ms network latency. Do NOT use Date.now() differences because 
+        // host and participant system clocks are rarely perfectly synchronized.
+        const expectedTime = payload.currentTime + 0.1;
         const myTime = listenPlayer.getCurrentTime() || 0;
         
         if (listenPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
@@ -482,8 +483,8 @@ function setupRealtime() {
            setListenStatus('Playing in sync with host.');
         }
 
-        // If drift is > 1.5 seconds, resync
-        if (Math.abs(expectedTime - myTime) > 1.5) {
+        // Tighten drift threshold to 0.5s for better sync
+        if (Math.abs(expectedTime - myTime) > 0.5) {
           listenPlayer.seekTo(expectedTime, true);
         }
       } else {
