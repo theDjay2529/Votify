@@ -10,6 +10,7 @@ import { getRoomForHost, pauseRoom, activateRoom, getRoomParticipants, kickParti
 // ── State ──
 let player = null;
 let currentSong = null;
+let currentSongUpdatedAt = Date.now();
 let isPlayerReady = false;
 let queue = [];
 let roomCode = null;
@@ -215,6 +216,7 @@ async function playNextSong() {
     if (data && data.length > 0) {
       const song = data[0];
       currentSong = song;
+      currentSongUpdatedAt = Date.now();
 
       // UI
       nowPlayingSection.classList.add('active');
@@ -226,6 +228,7 @@ async function playNextSong() {
       await refreshQueue();
     } else {
       currentSong = null;
+      currentSongUpdatedAt = Date.now();
       nowPlayingSection.classList.remove('active');
       idleState.classList.remove('hidden');
       if (player?.stopVideo) player.stopVideo();
@@ -435,11 +438,12 @@ async function broadcastState() {
     syncChannel.send({
       type: 'broadcast',
       event: 'now_playing',
-      payload: { currentSong }
+      payload: { currentSong, updatedAt: currentSongUpdatedAt }
     });
     await syncChannel.track({
       isHost: true,
       currentSong,
+      updatedAt: currentSongUpdatedAt,
       roomStatus: roomData.status
     });
   }

@@ -24,6 +24,7 @@ let roomIsPaused = false;
 let listenPlayer = null;
 let isListenPlayerReady = false;
 let isListeningActive = false;
+let lastSongUpdatedAt = 0;
 
 // ── DOM Elements ──
 const searchInput     = document.getElementById('search-input');
@@ -367,15 +368,25 @@ function syncWithPresence() {
   if (!syncChannel) return;
   const state = syncChannel.presenceState();
   const presences = Object.values(state).flat();
-  const host = presences.find(p => p.isHost);
-  if (host?.currentSong !== undefined) {
-    updateNowPlaying(host.currentSong);
+  const hosts = presences.filter(p => p.isHost);
+  
+  if (hosts.length > 0) {
+    hosts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    const host = hosts[0];
+    if (host.currentSong !== undefined) {
+      updateNowPlaying(host.currentSong, host.updatedAt);
+    }
   } else {
     refreshQueue();
   }
 }
 
-function updateNowPlaying(song) {
+function updateNowPlaying(song, updatedAt = 0) {
+  // Prevent older ghost presence objects from reverting the song
+  if (updatedAt && updatedAt < lastSongUpdatedAt) return;
+  if (updatedAt) lastSongUpdatedAt = updatedAt;
+  else lastSongUpdatedAt = Date.now();
+
   if (!song) {
     nowPlayingMini.classList.add('hidden');
     currentSong = null;
@@ -449,7 +460,7 @@ function setupRealtime() {
     .on('broadcast', { event: 'now_playing' }, ({ payload }) => {
       // Instant now-playing update via broadcast (much faster than presence alone)
       if (payload?.currentSong !== undefined) {
-        updateNowPlaying(payload.currentSong);
+        updateNowPlaying(payload.currentSong, payload.updatedAt || Date.now());
       }
     })
     .on('broadcast', { event: 'room_status_update' }, ({ payload }) => {
@@ -504,10 +515,19 @@ function setupRealtime() {
       const state = syncChannel.presenceState();
       presenceCount = Object.keys(state).length;
       updateSkipProgress();
+      
       const presences = Object.values(state).flat();
-      const host = presences.find(p => p.isHost);
-      if (host?.currentSong !== undefined) {
-        updateNowPlaying(host.currentSong);
+      const hosts = presences.filter(p => p.isHost);
+      
+      if (hosts.length > 0) {
+        // Sort descending by updatedAt so we don't pick up a stale ghost connection
+        hosts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        const host = hosts[0];
+        if (host.currentSong !== undefined) {
+          updateNowPlaying(host.currentSong, host.updatedAt);
+        }
+      } else {
+        refreshQueue();
       }
     })
     .subscribe(async (status) => {
