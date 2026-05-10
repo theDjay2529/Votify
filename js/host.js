@@ -222,17 +222,15 @@ async function playNextSong() {
       nowPlayingTitle.textContent = song.title;
 
       player.loadVideoById(song.youtube_id);
-      broadcastState();
-      refreshQueue();
-      broadcastPlaybackState();
+      await broadcastState();
+      await refreshQueue();
     } else {
       currentSong = null;
       nowPlayingSection.classList.remove('active');
       idleState.classList.remove('hidden');
       if (player?.stopVideo) player.stopVideo();
-      broadcastState();
-      refreshQueue();
-      broadcastPlaybackState();
+      await broadcastState();
+      await refreshQueue();
     }
   } catch (err) {
     showToast('Failed to load next song', 'error');
@@ -439,7 +437,7 @@ async function broadcastState() {
       event: 'now_playing',
       payload: { currentSong }
     });
-    syncChannel.track({
+    await syncChannel.track({
       isHost: true,
       currentSong,
       roomStatus: roomData.status
