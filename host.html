@@ -80,13 +80,13 @@
         </div>
         
         <!-- Host Search Bar -->
-        <div class="host-search-wrapper hidden" id="host-search-wrapper" style="display:flex; align-items:center; gap:8px; padding:0 12px; border-radius:9999px; height:30px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); width:240px; position:relative; z-index:100; transition:all 0.2s;">
-          <span style="font-size:0.75rem; color:#f87171;">🔍</span>
-          <input type="text" id="host-search-input" placeholder="Search to add..." style="flex:1; background:none; border:none; color:#f87171; outline:none; font-size:0.75rem; font-weight:600;" autocomplete="off"/>
-          <button class="search-clear hidden" id="host-search-clear" style="font-size:0.75rem; color:#f87171; cursor:pointer;">✕</button>
-          <div class="search-spinner hidden" id="host-search-spinner" style="transform:scale(0.6); margin-right:-4px; filter: hue-rotate(330deg);"><div class="spinner"></div></div>
+        <div class="host-search-wrapper hidden" id="host-search-wrapper" style="display:flex; align-items:center; gap:8px; padding:0 16px; border-radius:9999px; height:36px; background:rgba(255, 255, 255, 0.05); border:1px solid rgba(255, 255, 255, 0.1); flex:1; position:relative; z-index:100; transition:all 0.2s;">
+          <span style="font-size:0.85rem; color:var(--text-secondary);">🔍</span>
+          <input type="text" id="host-search-input" placeholder="Search and add songs" style="flex:1; background:none; border:none; color:var(--text-primary); outline:none; font-size:0.85rem; font-weight:500;" autocomplete="off"/>
+          <button class="search-clear hidden" id="host-search-clear" style="font-size:0.85rem; color:var(--text-muted); cursor:pointer;">✕</button>
+          <div class="search-spinner hidden" id="host-search-spinner" style="transform:scale(0.6); margin-right:-4px;"><div class="spinner"></div></div>
           
-          <div id="host-search-results" class="hidden" style="position:absolute; top:calc(100% + 12px); left:0; width:340px; max-height:400px; overflow-y:auto; background:var(--bg-glass); backdrop-filter:blur(20px); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:var(--space-sm); box-shadow:var(--shadow-lg);">
+          <div id="host-search-results" class="hidden" style="position:absolute; top:calc(100% + 12px); left:0; right:0; max-height:400px; overflow-y:auto; background:var(--bg-glass); backdrop-filter:blur(20px); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:var(--space-sm); box-shadow:var(--shadow-lg);">
             <div id="host-results-list"></div>
           </div>
         </div>
