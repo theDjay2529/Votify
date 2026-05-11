@@ -168,6 +168,7 @@ async function startListening() {
     isListeningActive = false;
     listenPlayer.stopVideo();
     btnStartListening.textContent = 'Start Listening';
+    btnStartListening.classList.remove('active-listen');
     btnStartListening.disabled = false;
     setListenStatus('Audio stopped. Click to resume.');
     return;
@@ -201,6 +202,7 @@ async function startListening() {
         isListenPlayerReady = true;
         listenPlayer.setVolume(listenVolume?.value ?? 100);
         btnStartListening.textContent = 'Stop Listening';
+        btnStartListening.classList.add('active-listen');
         btnStartListening.disabled = false;
         if (btnResyncAudio) btnResyncAudio.disabled = false;
         setListenStatus('Connected. Waiting for host playback.');

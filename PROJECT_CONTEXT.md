@@ -129,10 +129,13 @@ All clients join a single channel: `room-{ROOM_CODE}`.
 | "Failed to add song" false error | Moved `syncChannel` to module scope in `participant.js`. |
 | Skip button logic | Corrected column name from `room_item_id` to `queue_item_id`. |
 | Ghost login (dhananjaypatel) | Corrected post-login redirects to `home.html` instead of `index.html`. |
-| Participant Sync Lag | Added `now_playing` and `room_status_update` broadcasts for sub-100ms sync. |
+| Participant Sync Lag | Added `now_playing` and `room_status_update` broadcasts. Later tightened drift threshold to 0.4s and sync ping to 1000ms. *Note: a tiny bit of lag still remains to be fixed.* |
 | Kicked users had no names | Added `display_name` column to `room_bans` table. |
 | Modal UI regressions | Redesigned Create Room modal and added `hidden` class to stray confirm modals. |
 | Paused rooms blocked new room creation | Restored active-only room creation guard; paused rooms remain saved/rejoinable. |
+| Host Search Availability | Removed listen_together strict check, made search bar always visible pill-shape in host UI. |
+| Participant Room Close Pop-up | Switched listener from UPDATE to DELETE event to instantly show room closure modal without refresh. |
+| Listen Together UI Polish | Re-styled participant panel to be minimal, modern, and material-expressive with custom slider and glass UI. |
 
 ---
 
