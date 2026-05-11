@@ -6,7 +6,7 @@
 
 import { supabase } from './supabase-config.js';
 import { getOrCreateGuestToken, getUser } from './auth.js';
-import { getRoom, upsertParticipant, isParticipantBanned } from './rooms.js';
+import { getRoom, upsertParticipant, removeParticipant, isParticipantBanned } from './rooms.js';
 import { castUpvote, castDownvote, removeVote, submitSkipVote, getVoteForItem, getSkipVoteCount } from './voting.js';
 
 // ── State ──
@@ -97,6 +97,10 @@ async function init() {
   setupRealtime();
   setupListenTogetherParticipant();
 
+  // 8. Cleanup on unload
+  window.addEventListener('pagehide', handlePageHide);
+  window.addEventListener('beforeunload', handlePageHide);
+
   if (!roomIsPaused) {
     showToast(`Joined ${roomData.name}! 🎧`, 'success');
   }
@@ -133,12 +137,36 @@ function showLeaveConfirm() {
     leaveBtn.removeEventListener('click', onLeave);
   };
 
-  const onLeave = () => {
+  const onLeave = async () => {
+    leaveBtn.disabled = true;
+    await leaveRoom();
     window.location.replace('/join.html');
   };
 
   stayBtn.addEventListener('click', onStay);
   leaveBtn.addEventListener('click', onLeave);
+}
+
+async function leaveRoom() {
+  if (!roomData?.id || !participantToken) return;
+
+  if (syncChannel) {
+    try {
+      await syncChannel.untrack({ token: participantToken, name: displayName, isHost: false });
+    } catch (err) {
+      console.warn('[Votify] Failed to untrack presence:', err);
+    }
+  }
+
+  await removeParticipant(roomData.id, participantToken);
+  participantToken = null;
+}
+
+function handlePageHide() {
+  if (!roomData?.id || !participantToken) return;
+  leaveRoom().catch(() => {
+    /* best-effort cleanup */
+  });
 }
 
 // ── Paused Banner ─────────────────────────────────────────────

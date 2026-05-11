@@ -211,6 +211,16 @@ export async function upsertParticipant(roomId, token, displayName, isGuest) {
   if (error) console.error('[Votify] Participant upsert error:', error);
 }
 
+// ── Remove Participant on Voluntary Leave ─────────────────────
+export async function removeParticipant(roomId, participantToken) {
+  const { error } = await supabase
+    .from('room_participants')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('participant_token', participantToken);
+  if (error) console.error('[Votify] Remove participant error:', error);
+}
+
 // ── Get Participant List for Host ────────────────────────────
 export async function getRoomParticipants(roomId) {
   const { data, error } = await supabase
