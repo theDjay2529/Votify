@@ -297,7 +297,36 @@ Phase 3 (Web UI Polish) is complete:
 
 ---
 
-## 14. Pending Roadmap: Flutter Native App
+## 14. Phase 4: Flutter Development Guidelines
+
+As we transition to the native app, the following mandates must be followed by any development agent:
+
+### 14.1 Responsive Design Mandate ("Adaptive First")
+- **Layout**: Do not use hardcoded pixel widths. Use `MediaQuery` and `LayoutBuilder`.
+- **Tablet vs. Phone**: 
+    - **Phone**: Stacked layout. Queue is accessible via a sliding panel or separate tab. Player remains centered.
+    - **Tablet/PC**: Side-by-side "Master-Detail" layout. Player on the left, Queue and Moderation tools pinned on the right.
+- **Orientation**: Support both Portrait and Landscape. The UI must not "bug out" or overflow when rotating.
+
+### 14.2 Project Initialization Instructions (Android Studio)
+1. **Template**: New Flutter Project > Application.
+2. **Project Name**: `votify_app`.
+3. **Org**: `com.votify`.
+4. **Languages**: Kotlin (Android) and Swift (iOS).
+5. **Min SDK**: Android 21 (Lollipop).
+6. **Core Libraries to Add Immediately**:
+    - `supabase_flutter`: Backend & Realtime.
+    - `go_router`: Declarative routing.
+    - `youtube_player_flutter`: Media playback.
+    - `mobile_scanner`: QR functionality.
+    - `flutter_animate`: UI transitions.
+
+### 14.3 State Management Philosophy
+- Use **Realtime Streams**: The app should never require a "pull-to-refresh." Use Supabase's `.stream()` or `.onPostgresChanges()` to keep the Queue and Now Playing UI in sync across all devices globally.
+
+---
+
+## 15. Pending Roadmap: Flutter Native App
 
 With the web foundation complete, all future development moves to the **Flutter Native App**.
 
