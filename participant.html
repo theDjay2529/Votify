@@ -110,13 +110,12 @@
         <h2 class="section-title">🗳️ Queue</h2>
         <span class="queue-badge" id="queue-badge">0</span>
       </div>
-      <div class="queue-list" id="queue-list">
-        <!-- Queue items render here -->
-      </div>
-      <div class="queue-empty" id="queue-empty">
-        <div class="queue-empty-icon">🎵</div>
-        <p>No songs in the queue yet</p>
-        <p class="queue-empty-hint">Search and add the first song!</p>
+      <div class="queue-list" id="queue-list"></div>
+    
+      <div class="queue-empty hidden glass-card" id="queue-empty" style="padding: 40px 20px; border-radius: var(--radius-lg); margin-top: 10px;">
+        <div class="queue-empty-icon" style="font-size: 3rem; margin-bottom: 12px; filter: drop-shadow(0 0 12px rgba(168, 85, 247, 0.4));">🎧</div>
+        <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary);">The queue is empty</p>
+        <p class="queue-empty-hint" style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 8px;">Use the search bar above to start adding songs to the room!</p>
       </div>
     </section>
   </main>

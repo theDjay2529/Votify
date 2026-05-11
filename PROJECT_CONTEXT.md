@@ -283,3 +283,34 @@ Phase 2 web Listen Together implementation is production-ready on Vercel:
 - `participant.html` shows a Listen Together panel with start listening, local volume, and resync controls.
 - `api/livekit-token.js` mints LiveKit JWTs on Vercel and only allows the room host to publish.
 - **Production URL**: `https://votifyv2.vercel.app` (configured with `V2` branch deployment).
+
+---
+
+## 13. Phase 3 Status (Completed)
+
+Phase 3 (Web UI Polish) is complete:
+
+- Added skeleton loader states to the participant queue while data is fetching.
+- Redesigned the "Empty Queue" state to match the premium glassmorphism aesthetic.
+- **Strategic Decision**: We explicitly decided to skip the PWA "Add to Home Screen" configuration. To prevent fragmenting our user base and avoid confusing users with a "fake" app, we want to drive all "App" installations to the upcoming native Flutter app (which includes Android Auto features). The web app remains a frictionless, zero-install QR portal for quick participant voting.
+- *Note: There is a minor 0.4s audio sync lag during Listen Together playback that was intentionally deprioritized and deferred to a later optimization sweep.*
+
+---
+
+## 14. Pending Roadmap: Flutter Native App
+
+With the web foundation complete, all future development moves to the **Flutter Native App**.
+
+### Phase 4 — Flutter: Core App (2-3 weeks)
+- **What**: Build the true native app (not a WebView) using `supabase_flutter`.
+- **Goals**: Implement Supabase Auth, the Host Dashboard, QR code generation/scanning, and full feature parity for "Queue Mode".
+- **Deliverable**: A native Android app that connects to the same Supabase backend as the web app.
+
+### Phase 5 — Flutter: Listen Together + Android Auto (2-3 weeks)
+- **What**: Integrate `just_audio`, the LiveKit Flutter SDK (`livekit_client`), and `audio_service`.
+- **Goals**: The Android app captures audio using `just_audio` (bypassing the YouTube IFrame restriction) and broadcasts it to participants via LiveKit. The queue and transport controls are projected onto the car dashboard via Android Auto.
+- **Deliverable**: The ultimate party trick—hosts control the Listen Together room straight from their car's steering wheel while their phone runs in the background.
+
+### Phase 6 — Premium Streaming Services (Future)
+- **What**: Moving away from YouTube/Piped scraping.
+- **Goals**: Integrate official Spotify SDKs or YouTube Music OAuth to provide ad-free, high-fidelity audio streams for premium hosts.

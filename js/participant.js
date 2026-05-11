@@ -89,7 +89,8 @@ async function init() {
   // 5. Register presence
   await upsertParticipant(roomData.id, participantToken, displayName, isGuest);
 
-  // 6. Load queue
+  // 6. Show skeleton loader while loading queue
+  renderQueueSkeleton();
   await refreshQueue();
 
   // 7. Realtime
@@ -306,6 +307,20 @@ async function refreshQueue() {
   } catch (err) {
     console.error('[Votify] Queue error:', err);
   }
+}
+
+function renderQueueSkeleton() {
+  queueEmpty.classList.add('hidden');
+  queueList.innerHTML = Array(4).fill(`
+    <div class="queue-card glass-card">
+      <div class="skeleton skeleton-thumb" style="width: 56px; height: 40px; border-radius: 4px;"></div>
+      <div class="queue-card-info" style="display:flex; flex-direction:column; gap:6px;">
+        <div class="skeleton skeleton-text" style="width: 80%; margin:0; height:12px;"></div>
+        <div class="skeleton skeleton-text short" style="width: 40%; margin:0; height:10px;"></div>
+      </div>
+      <div class="vote-controls" style="width: 44px;"></div>
+    </div>
+  `).join('');
 }
 
 function renderQueue() {
