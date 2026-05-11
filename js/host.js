@@ -516,6 +516,14 @@ function setupRealtime() {
       refreshQueue();
       if (!currentSong && payload.eventType === 'INSERT') playNextSong();
     })
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'room_participants',
+      filter: `room_id=eq.${roomData.id}`
+    }, () => {
+      refreshParticipants();
+    })
     .on('presence', { event: 'sync' }, () => {
       const state = syncChannel.presenceState();
       presenceCount = Object.keys(state).length;
