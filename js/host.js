@@ -524,6 +524,9 @@ function setupRealtime() {
     }, () => {
       refreshParticipants();
     })
+    .on('broadcast', { event: 'participant_left' }, () => {
+      refreshParticipants();
+    })
     .on('presence', { event: 'sync' }, () => {
       const state = syncChannel.presenceState();
       presenceCount = Object.keys(state).length;
@@ -636,8 +639,22 @@ function broadcastPlaybackState() {
 
 // ── Participants ─────────────────────────────────────────────
 async function refreshParticipants() {
-  const list = await getRoomParticipants(roomData.id);
+  let list = await getRoomParticipants(roomData.id);
   const banned = await getBannedParticipants(roomData.id);
+
+  if (syncChannel) {
+    const presenceState = syncChannel.presenceState();
+    const activeTokens = new Set(
+      Object.values(presenceState)
+        .flat()
+        .map((entry) => entry.token)
+        .filter(Boolean)
+    );
+
+    if (activeTokens.size > 0) {
+      list = list.filter((p) => activeTokens.has(p.participant_token));
+    }
+  }
   
   // Prepend Host manually
   const { data: { session } } = await supabase.auth.getSession();

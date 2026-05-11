@@ -150,7 +150,17 @@ function showLeaveConfirm() {
 async function leaveRoom() {
   if (!roomData?.id || !participantToken) return;
 
+  await removeParticipant(roomData.id, participantToken);
+
   if (syncChannel) {
+    try {
+      if (syncChannel.send) {
+        await syncChannel.send({ type: 'broadcast', event: 'participant_left', payload: { participant_token: participantToken } });
+      }
+    } catch (err) {
+      console.warn('[Votify] Failed to broadcast leave event:', err);
+    }
+
     try {
       await syncChannel.untrack({ token: participantToken, name: displayName, isHost: false });
     } catch (err) {
@@ -158,7 +168,6 @@ async function leaveRoom() {
     }
   }
 
-  await removeParticipant(roomData.id, participantToken);
   participantToken = null;
 }
 
