@@ -1108,9 +1108,9 @@ Finalized the "Silent Disco" architecture using Supabase Realtime for high-preci
 - **Realtime Sync Engine**: Implemented a timestamp-validated `updatedAt` system to prevent state reverts from ghost presences.
 - **Listen Together UI**:
     - **Paused State**: Integrated a dulled, blurred glass-pane overlay (`.pause-overlay`) for both host and participants.
-    - **Host Controls**: Added a search bar directly on the host projector screen for "on-the-fly" song additions.
-    - **Participant Safety**: Implemented step-by-step backtracking with a "Leave Room?" confirmation modal to prevent accidental exits.
-- **Synchronized Playback**: Reduced sync drift threshold to 0.5s and removed redundant toast notifications for a smoother experience.
+    - **Host Controls**: Added a persistent, pill-shaped search bar directly on the host projector screen for "on-the-fly" song additions.
+    - **Participant Safety & UI**: Re-styled the listen-panel to a premium, material-expressive design, fixed room closure routing (DELETE event listener), and added a step-by-step backtracking modal.
+- **Synchronized Playback**: Tightened sync drift threshold to 0.4s and implemented an adaptive sync interval (1000ms) to stabilize the audio feed.
 
 **Deliverable:** Listen Together is production-ready. Host syncs playback state via Broadcast events, and participants follow in near-realtime with visual feedback.
 
@@ -1118,20 +1118,11 @@ Finalized the "Silent Disco" architecture using Supabase Realtime for high-preci
 
 ### Phase 3 — Web: PWA + Polish (Next Steps)
 
-- **Service Workers**: Implement `manifest.json` and service workers for "Add to Home Screen" support.
-- **Visual Polish**: Audit all modals and empty states for design consistency with the global glassmorphism theme.
-- **Performance**: Investigate residual audio jitter in high-latency network conditions.
+- **Service Workers**: Implement `manifest.json` and service workers for "Add to Home Screen" support with standalone meta tags and Android install prompts.
+- **Visual Polish**: Audit error states, empty states, and skeleton loaders for all new screens.
+- **Performance**: Investigate and eliminate any residual audio jitter in high-latency network conditions.
 
----
-
-### Phase 3 — Web: PWA + Polish (2 days)
-
-- `manifest.json`, service worker, icons
-- Standalone meta tags
-- Android install prompt
-- Error states, empty states, skeleton loaders for all new screens
-
-**Deliverable:** Web app installable on Android home screen.
+**Deliverable:** Web app fully installable on Android home screen with a flawless offline shell.
 
 ---
 
