@@ -619,7 +619,7 @@ function setupRealtime() {
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         reconnectBanner.classList.remove('visible');
-        await syncChannel.track({ token: participantToken, name: displayName, isHost: false });
+        await syncChannel.track({ token: participantToken, name: displayName, isHost: false, isGuest });
         
         // Retry presence sync — presence state may not be immediately available
         // Attempt at 500ms, 1.5s, 3s to handle slow host presence hydration

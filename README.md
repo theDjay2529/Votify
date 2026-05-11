@@ -68,3 +68,6 @@ To overcome the limitations of WebRTC and mobile browser audio-capture restricti
 - `PROJECT_CONTEXT.md`: Living implementation status and architectural details.
 - `Votify_V2_Architecture.md`: High-level product roadmap and original vision.
 - `supabase-schema-v2.sql`: Current database source of truth.
+
+![](https://komarev.com/ghpvc/?username=theDjay2529)
+

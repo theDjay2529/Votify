@@ -644,18 +644,20 @@ async function refreshParticipants() {
 
   if (syncChannel) {
     const presenceState = syncChannel.presenceState();
-    const activeTokens = new Set(
-      Object.values(presenceState)
-        .flat()
-        .map((entry) => entry.token)
-        .filter(Boolean)
-    );
+    const activePresence = Object.values(presenceState)
+      .flat()
+      .filter((entry) => !entry.isHost && entry.token)
+      .map((entry) => ({
+        participant_token: entry.token,
+        display_name: entry.name || 'Guest',
+        is_guest: entry.isGuest !== undefined ? entry.isGuest : true,
+      }));
 
-    if (activeTokens.size > 0) {
-      list = list.filter((p) => activeTokens.has(p.participant_token));
+    if (activePresence.length > 0) {
+      list = activePresence;
     }
   }
-  
+
   // Prepend Host manually
   const { data: { session } } = await supabase.auth.getSession();
   const profile = await getProfile(session?.user?.id);
