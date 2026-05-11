@@ -232,7 +232,6 @@
 
 /* ── V2: End Session Button ── */
 .btn-end-session {
-  margin-top: auto;
   width: 100%;
   padding: var(--space-sm) var(--space-md);
   background: rgba(239, 68, 68, 0.07);

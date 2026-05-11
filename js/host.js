@@ -101,7 +101,11 @@ async function setupHostSearch() {
   const clear = document.getElementById('host-search-clear');
   if (!wrapper || !input || !results) return;
 
-  wrapper.classList.remove('hidden');
+  if (roomData.mode === 'listen_together') {
+    wrapper.classList.remove('hidden');
+  } else {
+    wrapper.classList.add('hidden');
+  }
 
   let searchTimeout = null;
   input.addEventListener('input', () => {
