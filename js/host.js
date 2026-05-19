@@ -163,22 +163,21 @@ function renderHostSearchResults(songs) {
   }
   results.classList.remove('hidden');
   resultsList.innerHTML = songs.map(r => {
-    const thumb = getQueueThumbnail(r) || '';
-    const ytid = escapeAttr(r.youtube_id || '');
+    const thumb = getQueueThumbnail(r) || (r.youtube_id ? `https://i.ytimg.com/vi/${r.youtube_id}/mqdefault.jpg` : '');
     return `
       <div class="result-card glass-card-hover host-search-item"
            style="display:flex; align-items:center; gap:16px; padding:12px; cursor:pointer; border-radius:12px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.03); transition:all 0.2s;"
            data-ytid="${r.youtube_id}"
            data-title="${escapeAttr(r.title)}"
            data-thumb="${escapeAttr(r.thumbnail_url)}">
-        <img class="result-thumb" src="${escapeAttr(thumb)}" alt="" loading="lazy" style="width:100px; height:56px; border-radius:8px; object-fit:cover; flex-shrink:0;" onerror="if(this.dataset.fallback!=='true' && '${ytid}') { this.src='https://i.ytimg.com/vi/${ytid}/mqdefault.jpg'; this.dataset.fallback='true'; } else { this.style.display='none'; }" />
+        <img class="result-thumb" src="${escapeAttr(thumb)}" alt="" loading="lazy" style="width:100px; height:56px; border-radius:8px; object-fit:cover; flex-shrink:0;" onerror="this.style.display='none'" />
         <div class="result-info" style="flex:1; min-width:0;">
           <div class="result-title" style="font-size:0.9rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(r.title)}</div>
           <div class="result-author" style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(r.author || '')}</div>
         </div>
       <div class="result-add-icon" style="font-size:1.3rem; flex-shrink:0; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(168,85,247,0.15); transition:all 0.2s;">➕</div>
     </div>
-  `).join('');
+  `; }).join('');
 
   resultsList.querySelectorAll('.host-search-item').forEach(item => {
     item.addEventListener('mouseover', () => {
@@ -202,7 +201,7 @@ function renderHostSearchResults(songs) {
           upvotes: 1, // Host auto-upvotes
         }).select();
         if (error) throw error;
-        showToast(`Added "${title}"`, 'success');
+        showToast('Added "' + title + '"', 'success');
         document.getElementById('host-search-input').value = '';
         document.getElementById('host-search-clear')?.classList.add('hidden');
         results.classList.add('hidden');
