@@ -165,7 +165,7 @@ function renderHostSearchResults(songs) {
   resultsList.innerHTML = songs.map(r => {
     const placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="56"%3E%3Crect fill="%2317252b" width="100" height="56"/%3E%3Ctext x="50" y="34" fill="%23ffffff" font-family="Arial,sans-serif" font-size="11" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
     const thumb = getQueueThumbnail(r);
-    const fallbackId = escapeAttr(r.youtube_id || '');
+    const fallbackId = extractYoutubeId(r.youtube_id || '');
     const visibleThumb = thumb || (fallbackId ? `https://i.ytimg.com/vi/${fallbackId}/mqdefault.jpg` : placeholder);
     return `
       <div class="result-card glass-card-hover host-search-item"
@@ -227,14 +227,26 @@ async function searchYouTube(query) {
       const res = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) continue;
       const data = await res.json();
-      return data.items.filter(v => v.type === 'stream').slice(0, 5).map(v => ({
-        youtube_id: (v.url || '').replace('/watch?v=', '') || v.videoId,
-        title: v.title,
-        thumbnail_url: v.thumbnail || `https://i.ytimg.com/vi/${(v.url || '').replace('/watch?v=', '')}/mqdefault.jpg`,
-      }));
+      return data.items.filter(v => v.type === 'stream').slice(0, 5).map(v => {
+        const youtubeId = extractYoutubeId(v.url) || v.videoId;
+        return {
+          youtube_id: youtubeId,
+          title: v.title,
+          thumbnail_url: v.thumbnail || `https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg`,
+        };
+      });
     } catch { continue; }
   }
   return [];
+}
+
+function extractYoutubeId(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const match = raw.match(/(?:v=|youtu\.be\/|\/shorts\/|\/embed\/)([A-Za-z0-9_-]{11})/);
+  if (match?.[1]) return match[1];
+  const candidate = raw.split(/[?&]/)[0].split('/').pop();
+  return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : raw;
 }
 
 function escapeHtml(str) {
@@ -248,7 +260,7 @@ function getQueueThumbnail(song) {
   if (thumb && /^https?:\/\//.test(thumb)) {
     return thumb;
   }
-  const videoId = String(song.youtube_id || song.youtube_id || '').trim();
+  const videoId = extractYoutubeId(String(song.youtube_id || '').trim());
   if (videoId) {
     return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
   }
