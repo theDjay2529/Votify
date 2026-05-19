@@ -20,6 +20,8 @@ let presenceCount = 0;
 let isPinVisible = false;
 let hostIdentity = null;
 let syncInterval = null;
+const hostInstanceId = crypto.randomUUID();
+let hostTakeoverActive = false;
 
 // ── DOM Elements ──
 const nowPlayingSection  = document.getElementById('now-playing-section');
@@ -527,6 +529,12 @@ function setupRealtime() {
     .on('broadcast', { event: 'participant_left' }, () => {
       refreshParticipants();
     })
+    .on('broadcast', { event: 'host_takeover' }, async (payload) => {
+      const incomingId = payload.payload?.instanceId;
+      if (incomingId && incomingId !== hostInstanceId) {
+        await handleRemoteHostTakeover();
+      }
+    })
     .on('presence', { event: 'sync' }, () => {
       const state = syncChannel.presenceState();
       presenceCount = Object.keys(state).length;
@@ -536,6 +544,8 @@ function setupRealtime() {
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         reconnectBanner.classList.remove('visible');
+        const cancelled = await checkForExistingHostSession();
+        if (cancelled) return;
         await broadcastState();
         await broadcastRoomStatus(roomData.status);
       } else {
@@ -599,11 +609,76 @@ async function broadcastState() {
     });
     await syncChannel.track({
       isHost: true,
+      instanceId: hostInstanceId,
       currentSong,
       updatedAt: currentSongUpdatedAt,
       roomStatus: roomData.status
     });
   }
+}
+
+async function checkForExistingHostSession() {
+  if (!syncChannel) return false;
+  const state = syncChannel.presenceState();
+  const activeHosts = Object.values(state)
+    .flat()
+    .filter(entry => entry.isHost === true);
+
+  if (activeHosts.length === 0) return false;
+
+  const takeOver = await showConfirm(
+    'Active Host Session Detected',
+    'A host session for this room is already active on another device. Take over hosting here and disconnect the old session?'
+  );
+
+  if (!takeOver) {
+    window.location.replace('home.html');
+    return true;
+  }
+
+  if (syncChannel) {
+    syncChannel.send({
+      type: 'broadcast',
+      event: 'host_takeover',
+      payload: { instanceId: hostInstanceId, timestamp: Date.now() }
+    });
+  }
+
+  return false;
+}
+
+async function handleRemoteHostTakeover() {
+  if (hostTakeoverActive) return;
+  hostTakeoverActive = true;
+
+  showToast('Your host session was taken over by a new device.', 'error');
+  if (player && typeof player.pauseVideo === 'function') {
+    player.pauseVideo();
+  }
+
+  const overlay = document.getElementById('pause-overlay');
+  if (overlay) {
+    overlay.querySelector('.pause-overlay-text').textContent = 'Host Session Taken Over';
+    overlay.querySelector('.pause-overlay-sub').textContent = 'Another device has taken control of this room. This session will now end.';
+    overlay.classList.add('visible');
+  }
+
+  try {
+    if (syncChannel) {
+      await syncChannel.send({
+        type: 'broadcast',
+        event: 'room_status_update',
+        payload: { status: 'paused' }
+      });
+      await syncChannel.unsubscribe();
+    }
+  } catch (err) {
+    console.warn('[Votify] Host takeover cleanup failed:', err);
+  }
+
+  setTimeout(() => {
+    window.location.replace('home.html');
+  }, 3000);
 }
 
 async function broadcastRoomStatus(status) {
