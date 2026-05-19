@@ -37,6 +37,7 @@ const toastContainer     = document.getElementById('toast-container');
 const reconnectBanner    = document.getElementById('reconnect-banner');
 const pBadge             = document.getElementById('p-badge');
 const participantsList   = document.getElementById('participants-list');
+const btnToggleQr        = document.getElementById('btn-toggle-qr');
 
 // ── Initialization ───────────────────────────────────────────
 async function init() {
@@ -443,10 +444,11 @@ function renderQueueList() {
     const score = (song.upvotes || 0) - (song.downvotes || 0);
     const scoreClass = score > 0 ? 'pos' : score < 0 ? 'neg' : 'neutral';
     const rankClass = i === 0 ? 'top-1' : i === 1 ? 'top-2' : i === 2 ? 'top-3' : '';
+    const thumb = song.thumbnail_url || `https://i.ytimg.com/vi/${song.youtube_id || ''}/mqdefault.jpg`;
     return `
       <div class="queue-song glass-card" data-id="${song.id}">
         <span class="queue-song-rank ${rankClass}">${i + 1}</span>
-        <img class="queue-song-thumb" src="${song.thumbnail_url}" alt="" loading="lazy" />
+        <img class="queue-song-thumb" src="${escapeAttr(thumb)}" alt="${escapeAttr(song.title)}" loading="lazy" />
         <div class="queue-song-info">
           <div class="queue-song-title">${escapeHtml(song.title)}</div>
         </div>
@@ -493,17 +495,20 @@ async function refreshHistory() {
     historyList.innerHTML = '<div class="queue-empty"><p>No songs played yet</p></div>';
     return;
   }
-  historyList.innerHTML = songs.map((song, i) => `
-    <div class="queue-song glass-card" style="opacity:0.65;">
-      <span class="queue-song-rank" style="color:var(--text-muted);">${i + 1}</span>
-      <img class="queue-song-thumb" src="${song.thumbnail_url}" alt="" loading="lazy" />
-      <div class="queue-song-info">
-        <div class="queue-song-title">${escapeHtml(song.title)}</div>
-        <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">Added by ${escapeHtml(song.added_by || 'Unknown')}</div>
+  historyList.innerHTML = songs.map((song, i) => {
+    const thumb = song.thumbnail_url || `https://i.ytimg.com/vi/${song.youtube_id || ''}/mqdefault.jpg`;
+    return `
+      <div class="queue-song glass-card" style="opacity:0.65;">
+        <span class="queue-song-rank" style="color:var(--text-muted);">${i + 1}</span>
+        <img class="queue-song-thumb" src="${escapeAttr(thumb)}" alt="${escapeAttr(song.title)}" loading="lazy" />
+        <div class="queue-song-info">
+          <div class="queue-song-title">${escapeHtml(song.title)}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">Added by ${escapeHtml(song.added_by || 'Unknown')}</div>
+        </div>
+        <span style="font-size:0.75rem;color:var(--text-muted);">Played</span>
       </div>
-      <span style="font-size:0.75rem;color:var(--text-muted);">Played</span>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 // ── Realtime & Presence ──────────────────────────────────────
@@ -905,6 +910,14 @@ document.getElementById('btn-show-participants')?.addEventListener('click', () =
 
 document.getElementById('btn-close-drawer')?.addEventListener('click', () => {
   document.getElementById('participants-drawer').classList.add('hidden');
+});
+
+btnToggleQr?.addEventListener('click', () => {
+  const qrSection = document.getElementById('qr-section');
+  if (!qrSection) return;
+  const collapsed = qrSection.classList.toggle('collapsed');
+  btnToggleQr.textContent = collapsed ? 'Show QR details' : 'Hide QR details';
+  btnToggleQr.setAttribute('aria-expanded', String(!collapsed));
 });
 
 // Click outside drawer to close
