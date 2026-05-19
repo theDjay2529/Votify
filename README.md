@@ -30,19 +30,26 @@ A host creates a room, participants join by room code or QR link, and everyone v
 
 ## Local Setup
 
-1. Create a Supabase project.
-2. Run the SQL schema in Supabase SQL Editor:
-   `supabase-schema-v2.sql`
-3. Create a `.env` file in the project root.
-4. Add these values:
-
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-VITE_DEPLOYED_URL=https://your-site.vercel.app
-```
-
-5. Install dependencies and launch the development server:
+1. Create a [Supabase](https://supabase.com) project.
+2. Run the database schema in the Supabase SQL Editor:
+   ```
+   supabase-schema-v2.sql
+   ```
+3. Create a `.env` file in the project root with these values:
+   ```env
+   VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+   VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+   VITE_DEPLOYED_URL=https://your-site.netlify.app
+   VITE_LIVEKIT_URL=wss://YOUR_PROJECT.livekit.cloud
+   ```
+4. *(Listen Together only)* Create `supabase/.env.local` with:
+   ```env
+   SUPABASE_URL=...
+   SUPABASE_ANON_KEY=...
+   LIVEKIT_API_KEY=...
+   LIVEKIT_API_SECRET=...
+   ```
+5. Install dependencies and start the dev server:
 
 ```bash
 npm install
@@ -70,11 +77,10 @@ This mode avoids audio-streaming servers by synchronizing playback state instead
 
 ## Important Files
 
-- `supabase-schema-v2.sql` — database schema and tables
-- `PROJECT_CONTEXT.md` — implementation notes and status
+- `supabase-schema-v2.sql` — database schema, tables, and RLS policies
+- `PROJECT_CONTEXT.md` — implementation notes and phase status
 - `Votify_V2_Architecture.md` — project vision and architecture
 
 ---
 
 Built for fast crowd-sourced music sessions with modern static hosting and real-time sync.
-
