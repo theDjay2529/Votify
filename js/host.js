@@ -22,6 +22,8 @@ let hostIdentity = null;
 let syncInterval = null;
 const hostInstanceId = crypto.randomUUID();
 let hostTakeoverActive = false;
+let presenceSyncPromise = null;
+let resolvePresenceSync = null;
 
 // ── DOM Elements ──
 const nowPlayingSection  = document.getElementById('now-playing-section');
@@ -507,6 +509,9 @@ async function refreshHistory() {
 // ── Realtime & Presence ──────────────────────────────────────
 function setupRealtime() {
   syncChannel = supabase.channel(`room-${roomCode}`);
+  presenceSyncPromise = new Promise((resolve) => {
+    resolvePresenceSync = resolve;
+  });
 
   syncChannel
     .on('postgres_changes', { 
@@ -540,10 +545,20 @@ function setupRealtime() {
       presenceCount = Object.keys(state).length;
       if (pBadge) pBadge.textContent = presenceCount;
       refreshParticipants();
+
+      if (resolvePresenceSync) {
+        resolvePresenceSync();
+        resolvePresenceSync = null;
+      }
     })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         reconnectBanner.classList.remove('visible');
+        await Promise.race([
+          presenceSyncPromise,
+          new Promise(resolve => setTimeout(resolve, 1000))
+        ]);
+
         const cancelled = await checkForExistingHostSession();
         if (cancelled) return;
         await broadcastState();
