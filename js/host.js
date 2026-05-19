@@ -238,29 +238,6 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function normalizeYoutubeId(id) {
-  if (!id) return '';
-  const raw = String(id).trim();
-  const urlMatch = raw.match(/[?&]v=([^&]+)/);
-  if (urlMatch) return urlMatch[1];
-  const pathMatch = raw.match(/youtu(?:\.be|be\.com)\/(?:watch\?v=)?(.+)$/);
-  if (pathMatch) return pathMatch[1].split(/[&?]/)[0];
-  return raw.split('/').filter(Boolean).pop() || '';
-}
-
-function getQueueThumbnail(song) {
-  const thumb = String(song.thumbnail_url || '').trim();
-  const invalidValues = ['', 'undefined', 'null', 'https://undefined', 'https://null'];
-  if (thumb && !invalidValues.includes(thumb.toLowerCase()) && /^https?:\/\//.test(thumb)) {
-    return thumb;
-  }
-  const videoId = normalizeYoutubeId(song.youtube_id || song.video_id);
-  if (videoId) {
-    return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
-  }
-  return 'https://via.placeholder.com/112x64/111827/94a3b8?text=No+Image';
-}
-
 function escapeAttr(str) {
   return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -468,11 +445,10 @@ function renderQueueList() {
     const score = (song.upvotes || 0) - (song.downvotes || 0);
     const scoreClass = score > 0 ? 'pos' : score < 0 ? 'neg' : 'neutral';
     const rankClass = i === 0 ? 'top-1' : i === 1 ? 'top-2' : i === 2 ? 'top-3' : '';
-    const thumb = getQueueThumbnail(song);
     return `
       <div class="queue-song glass-card" data-id="${song.id}">
         <span class="queue-song-rank ${rankClass}">${i + 1}</span>
-        <img class="queue-song-thumb" src="${escapeAttr(thumb)}" alt="${escapeAttr(song.title)}" loading="lazy" onerror="this.src='https://via.placeholder.com/112x64/111827/94a3b8?text=No+Image'" />
+        <img class="queue-song-thumb" src="${escapeAttr(song.thumbnail_url || '')}" alt="" onerror="this.style.display='none'" />
         <div class="queue-song-info">
           <div class="queue-song-title">${escapeHtml(song.title)}</div>
         </div>
@@ -520,11 +496,10 @@ async function refreshHistory() {
     return;
   }
   historyList.innerHTML = songs.map((song, i) => {
-    const thumb = getQueueThumbnail(song);
     return `
       <div class="queue-song glass-card" style="opacity:0.65;">
         <span class="queue-song-rank" style="color:var(--text-muted);">${i + 1}</span>
-        <img class="queue-song-thumb" src="${escapeAttr(thumb)}" alt="${escapeAttr(song.title)}" loading="lazy" onerror="this.src='https://via.placeholder.com/112x64/111827/94a3b8?text=No+Image'" />
+        <img class="queue-song-thumb" src="${escapeAttr(song.thumbnail_url || '')}" alt="" onerror="this.style.display='none'" />
         <div class="queue-song-info">
           <div class="queue-song-title">${escapeHtml(song.title)}</div>
           <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">Added by ${escapeHtml(song.added_by || 'Unknown')}</div>
