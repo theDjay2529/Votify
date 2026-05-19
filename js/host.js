@@ -163,17 +163,15 @@ function renderHostSearchResults(songs) {
   }
   results.classList.remove('hidden');
   resultsList.innerHTML = songs.map(r => {
-    const placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="56"%3E%3Crect fill="%2317252b" width="100" height="56"/%3E%3Ctext x="50" y="34" fill="%23ffffff" font-family="Arial,sans-serif" font-size="11" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
-    const thumb = getQueueThumbnail(r);
-    const fallbackId = extractYoutubeId(r.youtube_id || '');
-    const visibleThumb = thumb || (fallbackId ? `https://i.ytimg.com/vi/${fallbackId}/mqdefault.jpg` : placeholder);
+    const thumbnailUrl = r.thumbnail_url || (r.youtube_id ? `https://i.ytimg.com/vi/${r.youtube_id}/mqdefault.jpg` : '');
+    const fallbackId = escapeAttr(r.youtube_id || '');
     return `
       <div class="result-card glass-card-hover host-search-item"
            style="display:flex; align-items:center; gap:16px; padding:12px; cursor:pointer; border-radius:12px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.03); transition:all 0.2s;"
            data-ytid="${r.youtube_id}"
            data-title="${escapeAttr(r.title)}"
-           data-thumb="${escapeAttr(visibleThumb)}">
-        <img class="result-thumb" src="${escapeAttr(visibleThumb)}" alt="" loading="lazy" style="width:100px; height:56px; border-radius:8px; object-fit:cover; flex-shrink:0;" data-fallback="false" onerror="if(this.dataset.fallback !== 'true' && '${fallbackId}') { this.src='https://i.ytimg.com/vi/${fallbackId}/mqdefault.jpg'; this.dataset.fallback='true'; } else { this.src='${placeholder}'; }" />
+           data-thumb="${escapeAttr(thumbnailUrl)}">
+        <img class="result-thumb" src="${escapeAttr(thumbnailUrl)}" alt="" loading="lazy" style="width:100px; height:56px; border-radius:8px; object-fit:cover; flex-shrink:0;" onerror="if('${fallbackId}' && this.src.indexOf('https://i.ytimg.com/vi/${fallbackId}/mqdefault.jpg') === -1) { this.src='https://i.ytimg.com/vi/${fallbackId}/mqdefault.jpg'; } else { this.style.display='none'; }" />
         <div class="result-info" style="flex:1; min-width:0;">
           <div class="result-title" style="font-size:0.9rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(r.title)}</div>
           <div class="result-author" style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(r.author || '')}</div>
@@ -246,7 +244,7 @@ function extractYoutubeId(value) {
   const match = raw.match(/(?:v=|youtu\.be\/|\/shorts\/|\/embed\/)([A-Za-z0-9_-]{11})/);
   if (match?.[1]) return match[1];
   const candidate = raw.split(/[?&]/)[0].split('/').pop();
-  return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : raw;
+  return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : '';
 }
 
 function escapeHtml(str) {
