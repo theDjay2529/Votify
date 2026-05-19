@@ -610,7 +610,15 @@
 .queue-song-rank.top-2 { color: #94a3b8; }
 .queue-song-rank.top-3 { color: #cd7f32; }
 
-.queue-song-thumb { width: 96px; height: 54px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0; }
+.queue-song-thumb {
+  width: 96px;
+  height: 54px;
+  min-width: 96px;
+  border-radius: var(--radius-sm);
+  background: #0f172a;
+  object-fit: cover;
+  flex-shrink: 0;
+}
 
 .queue-song-info { flex: 1; min-width: 0; padding: 0 var(--space-xs); }
 
