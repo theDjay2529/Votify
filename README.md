@@ -17,15 +17,24 @@ Everyone votes — the best songs rise to the top.
 
 ## What is Votify?
 **Votify is a real-time, crowd-controlled music platform that puts your audience in charge of the vibe.** 
+
 *No app installs required. No registration needed to participate (you only need to login if you want to HOST a room).*
+
 ---
+## Services Offered:
 ### 📺 Queue Mode (The Big Screen Experience)
 Votify lets a host start a music session and display it on a big screen (like a TV or projector). Participants join from their phones using a simple room code, search YouTube for songs, add them to the queue, and vote songs up or down in real time. The crowd decides what plays next!
----
+
+‎ 
 ### 🎶 Listen Together Mode (Multi-Device Sync 🎧🔊)
 Votify features a synchronized **Listen Together** mode that lets you play songs on multiple devices in perfect, real-time sync.
-* **Long-Distance Jams:** You and your friends across different countries can listen to the exact same queue at the exact same second.
-* **No Bluetooth Speaker? No Problem!** Forgot a speaker for a party or jam session? Don't worry—just have everyone join the room. Every phone speaker will play the music in sync, combining forces to make up for the missing speaker!
+
+* **Long-Distance Jams:**
+You and your friends across different countries can listen to the exact same queue at the exact same second.
+
+* **No Bluetooth Speaker? No Problem!**
+Forgot a speaker for a party or jam session? Don't worry—just have everyone join the room. Every phone speaker will play the music in sync, combining forces to make up for the missing speaker!
+
 ---
 
 ## Features
