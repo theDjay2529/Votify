@@ -7,9 +7,28 @@
 Real-time, crowd-controlled YouTube music queue for parties, events, and live sessions.
 Everyone votes — the best songs rise to the top.
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-votify--delta.vercel.app-7c3aed?style=for-the-badge&logo=vercel)](https://votify-delta.vercel.app)
-[![License](https://img.shields.io/badge/License-Apache_2.0-38bdf8?style=for-the-badge)](LICENSE)
-[![Supabase](https://img.shields.io/badge/Backend-Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com)
+<br />
+
+<!-- BIG WEBSITE BUTTON -->
+<a href="https://votify-delta.vercel.app" target="_blank">
+  <img src="https://img.shields.io/badge/LAUNCH_VOTIFY-⚡_Go_to_Website-7c3aed?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Launch Votify" height="48">
+</a>
+
+<br /><br />
+
+<!-- UTILITY BADGES -->
+<a href="https://github.com/theDjay2529/Votify" target="_blank">
+  <img src="https://komarev.com/ghpvc/?username=theDjay2529&repo=Votify&color=38bdf8&style=for-the-badge&label=Repo+Visits" alt="Repo Visits">
+</a>
+<a href="https://github.com/theDjay2529/Votify/issues/new?labels=bug&title=%5BBug%5D+Describe+the+issue" target="_blank">
+  <img src="https://img.shields.io/badge/Report_Bug-EF4444?style=for-the-badge&logo=github&logoColor=white" alt="Report Bug">
+</a>
+<a href="https://github.com/theDjay2529/Votify/issues/new?labels=enhancement&title=%5BFeature%5D+Describe+your+idea" target="_blank">
+  <img src="https://img.shields.io/badge/Request_Feature-10B981?style=for-the-badge&logo=github&logoColor=white" alt="Request Feature">
+</a>
+<a href="LICENSE">
+  <img src="https://img.shields.io/badge/License-Apache_2.0-38bdf8?style=for-the-badge" alt="License">
+</a>
 
 </div>
 
