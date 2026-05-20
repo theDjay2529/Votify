@@ -16,23 +16,16 @@ Everyone votes — the best songs rise to the top.
 ---
 
 ## What is Votify?
-
-Votify lets a **host** start a music session and display it on a big screen. **Participants** join from their phones using a room code, search YouTube for songs, add them to the queue, and vote songs up or down in real time. The crowd decides what plays next.
-
-It also Features a synchronized "Listen Together" mode, where you can play songs on Multiple Devices in SYNC.
-
-No app install needed. No account required to join.
-
+**Votify is a real-time, crowd-controlled music platform that puts your audience in charge of the vibe.** 
+*No app installs required. No registration needed to participate (you only need to login if you want to HOST a room).*
 ---
-
-## 🌟 "Listen Together" Mode (Silent Disco 🎧)
-
-Want to jam with friends remotely, or throw a local silent disco party? Votify has a dedicated **Listen Together** room mode!
-
-* **How it works:** When a host starts a "Listen Together" session, the audio isn't just played on the host's screen. Instead, **every participant's phone acts as a synced speaker/player**.
-* **Real-time Sync:** The host controls the playback state (Play, Pause, Skip, Seek). Supabase coordinates the timeline and instantly broadcasts updates. Every participant's device syncs to the exact second.
-* **Why it's cool:** Put on your headphones, invite your friends from anywhere in the world, and listen to the crowdsourced queue in perfect real-time sync.
-
+### 📺 Queue Mode (The Big Screen Experience)
+Votify lets a host start a music session and display it on a big screen (like a TV or projector). Participants join from their phones using a simple room code, search YouTube for songs, add them to the queue, and vote songs up or down in real time. The crowd decides what plays next!
+---
+### 🎶 Listen Together Mode (Multi-Device Sync 🎧🔊)
+Votify features a synchronized **Listen Together** mode that lets you play songs on multiple devices in perfect, real-time sync.
+* **Long-Distance Jams:** You and your friends across different countries can listen to the exact same queue at the exact same second.
+* **No Bluetooth Speaker? No Problem!** Forgot a speaker for a party or jam session? Don't worry—just have everyone join the room. Every phone speaker will play the music in sync, combining forces to make up for the missing speaker!
 ---
 
 ## Features
