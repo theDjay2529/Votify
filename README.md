@@ -19,6 +19,8 @@ Everyone votes — the best songs rise to the top.
 
 Votify lets a **host** start a music session and display it on a big screen. **Participants** join from their phones using a room code, search YouTube for songs, add them to the queue, and vote songs up or down in real time. The crowd decides what plays next.
 
+It also Features a synchronized "Listen Together" mode, where you can play songs on Multiple Devices in SYNC.
+
 No app install needed. No account required to join.
 
 ---
