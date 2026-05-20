@@ -379,10 +379,13 @@ function renderQueue() {
     const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     const scoreClass = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
 
+    const safeThumb = escapeAttr(song.thumbnail_url || '');
+    const safeYtId  = escapeAttr(extractYoutubeId(song.youtube_id || '') || song.youtube_id || '');
     return `
       <div class="queue-card glass-card" data-id="${song.id}">
         <span class="queue-card-rank ${rankClass}">${i + 1}</span>
-        <img class="queue-card-thumb" src="${song.thumbnail_url}" alt="" loading="lazy" />
+        <img class="queue-card-thumb" src="${safeThumb}" alt="" loading="lazy"
+             onerror="if(this.dataset.fallback!=='true'&&'${safeYtId}'){this.src='https://i.ytimg.com/vi/${safeYtId}/mqdefault.jpg';this.dataset.fallback='true';}else{this.style.display='none';}" />
         <div class="queue-card-info">
           <div class="queue-card-title">${escapeHtml(song.title)}</div>
           <div class="queue-card-added">by ${escapeHtml(song.added_by || 'Unknown')}</div>
@@ -738,20 +741,24 @@ async function performSearch(q) {
       resultsList.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:var(--space-lg);">No results found</p>`;
       return;
     }
-    resultsList.innerHTML = results.map(r => `
-      <div class="result-card glass-card-hover"
-           data-ytid="${r.youtube_id}"
-           data-title="${escapeAttr(r.title)}"
-           data-thumb="${escapeAttr(r.thumbnail_url)}">
-        <img class="result-thumb" src="${r.thumbnail_url}" alt="" loading="lazy"
-             onerror="this.src='https://i.ytimg.com/vi/${r.youtube_id}/mqdefault.jpg'" />
-        <div class="result-info">
-          <div class="result-title">${escapeHtml(r.title)}</div>
-          <div class="result-author">${escapeHtml(r.author)}</div>
+    resultsList.innerHTML = results.map(r => {
+      const safeThumb = escapeAttr(r.thumbnail_url || '');
+      const safeYtId  = escapeAttr(r.youtube_id || '');
+      return `
+        <div class="result-card glass-card-hover"
+             data-ytid="${safeYtId}"
+             data-title="${escapeAttr(r.title)}"
+             data-thumb="${safeThumb}">
+          <img class="result-thumb" src="${safeThumb}" alt="" loading="lazy"
+               onerror="this.src='https://i.ytimg.com/vi/${safeYtId}/mqdefault.jpg'" />
+          <div class="result-info">
+            <div class="result-title">${escapeHtml(r.title)}</div>
+            <div class="result-author">${escapeHtml(r.author)}</div>
+          </div>
+          <div class="result-add-icon">➕</div>
         </div>
-        <div class="result-add-icon">➕</div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     resultsList.querySelectorAll('.result-card').forEach(card => {
       card.addEventListener('click', () => addSong(card));
@@ -846,9 +853,19 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function extractYoutubeId(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const match = raw.match(/(?:v=|youtu\.be\/|\/shorts\/|\/embed\/)([A-Za-z0-9_-]{11})/);
+  if (match?.[1]) return match[1];
+  const candidate = raw.split(/[?&]/)[0].split('/').pop();
+  return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : '';
+}
+
 function escapeAttr(str) {
   return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
 
 // Start
 init();

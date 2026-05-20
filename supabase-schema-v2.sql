@@ -376,14 +376,12 @@ CREATE POLICY "anyone can add to active room queue"
     SELECT 1 FROM rooms WHERE rooms.id = queue.room_id AND rooms.status = 'active'
   ));
 
--- Anyone can update queue rows in active rooms (for voting) -- blocked when paused
-CREATE POLICY "anyone can update queue in active rooms"
-  ON queue FOR UPDATE
-  USING (EXISTS (
-    SELECT 1 FROM rooms WHERE rooms.id = queue.room_id AND rooms.status = 'active'
-  ));
+-- Note: direct queue UPDATE for voting is intentionally NOT allowed.
+-- All vote changes go through the cast_upvote / cast_downvote / remove_vote
+-- SECURITY DEFINER RPCs which bypass RLS and enforce atomicity.
+-- This prevents a malicious user from setting upvotes=9999 via direct API call.
 
--- Host can update any queue row in their room (e.g. mark as played)
+-- Host can update any queue row in their room (e.g. mark as played, remove)
 CREATE POLICY "host can update any queue row"
   ON queue FOR UPDATE
   USING (EXISTS (
