@@ -8,7 +8,7 @@ Real-time, crowd-controlled YouTube music queue for parties, events, and live se
 Everyone votes — the best songs rise to the top.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-votify--delta.vercel.app-7c3aed?style=for-the-badge&logo=vercel)](https://votify-delta.vercel.app)
-[![License](https://img.shields.io/badge/License-MIT-38bdf8?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-38bdf8?style=for-the-badge)](LICENSE)
 [![Supabase](https://img.shields.io/badge/Backend-Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com)
 
 </div>
@@ -20,6 +20,16 @@ Everyone votes — the best songs rise to the top.
 Votify lets a **host** start a music session and display it on a big screen. **Participants** join from their phones using a room code, search YouTube for songs, add them to the queue, and vote songs up or down in real time. The crowd decides what plays next.
 
 No app install needed. No account required to join.
+
+---
+
+## 🌟 "Listen Together" Mode (Silent Disco 🎧)
+
+Want to jam with friends remotely, or throw a local silent disco party? Votify has a dedicated **Listen Together** room mode!
+
+* **How it works:** When a host starts a "Listen Together" session, the audio isn't just played on the host's screen. Instead, **every participant's phone acts as a synced speaker/player**.
+* **Real-time Sync:** The host controls the playback state (Play, Pause, Skip, Seek). Supabase coordinates the timeline and instantly broadcasts updates. Every participant's device syncs to the exact second.
+* **Why it's cool:** Put on your headphones, invite your friends from anywhere in the world, and listen to the crowdsourced queue in perfect real-time sync.
 
 ---
 
@@ -198,7 +208,7 @@ Pull requests are welcome. For major changes please open an issue first to discu
 
 ## License
 
-[MIT](LICENSE) — free to use, modify, and self-host.
+[Apache License 2.0](LICENSE) — free to use, modify, and self-host.
 
 ---
 
