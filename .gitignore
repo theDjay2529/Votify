@@ -1,6 +1,26 @@
+# ── Dependencies & Build ──────────────────────────
 node_modules/
 dist/
+
+# ── Environment & Secrets (NEVER commit these) ────
 .env
 .env.*
-.netlify/
+!.env.example
+
+# ── Supabase local secrets ────────────────────────
 supabase/.env*
+!supabase/.env.example
+supabase/.temp/
+
+# ── Netlify local cache ───────────────────────────
+.netlify/
+
+# ── Dev server log files ──────────────────────────
+*.log
+*.err
+
+# ── OS & Editor ───────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

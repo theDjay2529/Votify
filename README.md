@@ -1,86 +1,207 @@
-# Votify V2
+<div align="center">
 
-Votify V2 is a real-time, crowd-controlled YouTube music queue built for shared listening experiences.
-A host creates a room, participants join by room code or QR link, and everyone votes the queue together.
+# 🎧 Votify
+
+**Your crowd controls the music.**
+
+Real-time, crowd-controlled YouTube music queue for parties, events, and live sessions.
+Everyone votes — the best songs rise to the top.
+
+[![Live Demo](https://img.shields.io/badge/Live_Demo-votify--delta.vercel.app-7c3aed?style=for-the-badge&logo=vercel)](https://votify-delta.vercel.app)
+[![License](https://img.shields.io/badge/License-MIT-38bdf8?style=for-the-badge)](LICENSE)
+[![Supabase](https://img.shields.io/badge/Backend-Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com)
+
+</div>
+
+---
+
+## What is Votify?
+
+Votify lets a **host** start a music session and display it on a big screen. **Participants** join from their phones using a room code, search YouTube for songs, add them to the queue, and vote songs up or down in real time. The crowd decides what plays next.
+
+No app install needed. No account required to join.
+
+---
 
 ## Features
 
-- **Queue Room**: one central playback screen managed by the host, with room-wide queue voting.
-- **Listen Together (Silent Disco)**: participants play synchronized YouTube audio locally while the host controls playback state.
-- **Live voting**: add, reorder, and vote songs in real time.
-- **Supabase backend**: Auth, Postgres, RLS, and Realtime for fast state sync.
-- **Static-first deployment**: optimized for Vercel with no dedicated server required.
+| Feature | Description |
+|---|---|
+| 🗳️ **Live Voting** | Upvote and downvote songs. The queue sorts by votes automatically in real time. |
+| 📱 **Phone Remote** | Participants control the queue entirely from their phones. |
+| 🔍 **YouTube Search** | Search YouTube directly inside the app via Piped API (no YouTube API key needed). |
+| 🔐 **PIN Protection** | Hosts can optionally lock rooms with a PIN. |
+| 🚫 **Moderation** | Hosts can kick and ban participants from the session. |
+| ⏸️ **Pause & Resume** | Hosts can pause a room and come back later without losing queue state. |
+| 🔗 **QR Code Join** | Auto-generated QR code for instant participant joining. |
+| 🎶 **Listen Together** | Silent Disco mode — participants sync audio playback locally, host controls state. |
+| ⚡ **Real-time Sync** | All queue and vote changes push to every connected device instantly via Supabase Realtime. |
+
+---
 
 ## Tech Stack
 
-- Frontend: Vanilla HTML, CSS, and ES modules
-- Build tool: Vite
-- Backend: Supabase Auth, Postgres, Realtime, and Row-Level Security
-- Playback: YouTube IFrame Player API
-- Search: Piped API with Invidious fallback
+- **Frontend** — Vanilla HTML, CSS, and ES Modules (no framework)
+- **Build** — [Vite](https://vitejs.dev)
+- **Backend** — [Supabase](https://supabase.com) (Postgres + Auth + RLS + Realtime)
+- **Hosting** — [Netlify](https://netlify.com) with Netlify Functions
+- **Playback** — YouTube IFrame Player API
+- **Search** — [Piped API](https://github.com/TeamPiped/Piped) (privacy-friendly YouTube proxy, no API key required)
 
-## Project Layout
+---
 
-- `index.html` — public landing page
-- `auth.html` — host authentication and profile setup
-- `home.html` — dashboard and room creation
-- `host.html` — host playback/projector screen
-- `join.html` — participant room code entry
-- `participant.html` — participant remote controller
+## Project Structure
+
+```
+votify/
+├── index.html          # Landing page (Join / Host entry point)
+├── auth.html           # Host login (Google OAuth + username/password)
+├── home.html           # Host dashboard & room creation
+├── host.html           # Host playback screen (the "big screen")
+├── join.html           # Participant room code entry
+├── participant.html    # Participant remote controller
+│
+├── js/
+│   ├── supabase-config.js   # Supabase client initialisation
+│   ├── auth.js              # Auth helpers, session guards, guest tokens
+│   ├── auth-page.js         # Login/signup page logic
+│   ├── rooms.js             # Room lifecycle (create, pause, delete, ban)
+│   ├── voting.js            # Vote casting RPCs and local vote state
+│   ├── home.js              # Dashboard logic
+│   ├── host.js              # Full host playback + moderation logic
+│   ├── join.js              # Room join flow (code → PIN → identity)
+│   └── participant.js       # Participant queue, voting, and search logic
+│
+├── css/                # Per-page stylesheets + global design tokens
+├── netlify/functions/  # Serverless function (LiveKit token endpoint)
+├── supabase-schema-v2.sql   # Full database schema with RLS policies
+└── netlify.toml        # Build config + HTTP security headers
+```
+
+---
+
+## How it Works
+
+```
+Host opens Votify → Creates a room → Displays host screen on TV/projector
+        │
+        └──► Shares room code or QR link with the crowd
+                        │
+                        └──► Participants open link on phone
+                                    │
+                                    ├── Search YouTube
+                                    ├── Add songs to queue
+                                    ├── Vote songs up/down
+                                    └── Queue reorders in real time on all screens
+```
+
+All state (queue, votes, participants) is stored in **Supabase Postgres** and streamed to every connected client via **Supabase Realtime** channels. Row Level Security (RLS) ensures participants can only do what they're supposed to — no server-side code needed for most operations.
+
+---
 
 ## Local Setup
 
-1. Create a [Supabase](https://supabase.com) project.
-2. Run the database schema in the Supabase SQL Editor:
-   ```
-   supabase-schema-v2.sql
-   ```
-3. Create a `.env` file in the project root with these values:
-   ```env
-   VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-   VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-   VITE_DEPLOYED_URL=https://your-site.netlify.app
-   VITE_LIVEKIT_URL=wss://YOUR_PROJECT.livekit.cloud
-   ```
-4. *(Listen Together only)* Create `supabase/.env.local` with:
-   ```env
-   SUPABASE_URL=...
-   SUPABASE_ANON_KEY=...
-   LIVEKIT_API_KEY=...
-   LIVEKIT_API_SECRET=...
-   ```
-5. Install dependencies and start the dev server:
+### Prerequisites
 
+- [Node.js](https://nodejs.org) 18+
+- A free [Supabase](https://supabase.com) account
+
+### Steps
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/theDjay2529/Votify.git
+cd Votify
+```
+
+**2. Set up the database**
+
+In your Supabase project, go to **SQL Editor → New Query**, paste the contents of `supabase-schema-v2.sql`, and click **Run**.
+
+**3. Configure environment variables**
+
+Create a `.env` file in the project root:
+```env
+VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+VITE_DEPLOYED_URL=http://localhost:3000
+```
+
+Get these values from **Supabase → Project Settings → API**.
+
+**4. Install and run**
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser.
-
-## Deployment
-
-Votify V2 is optimized for static deployment on Vercel.
-
-1. Connect the repository to Vercel.
-2. Add the same environment variables from `.env` in the Vercel dashboard.
-3. Configure the production branch and deploy.
-4. In Supabase Auth settings, add your deployed site URL and redirect URI.
-
-## Listen Together (Silent Disco)
-
-This mode avoids audio-streaming servers by synchronizing playback state instead of audio:
-
-- Host broadcasts playback state updates through Supabase Realtime.
-- Participants start a hidden local YouTube player and follow the host’s sync timeline.
-- This keeps playback aligned across devices without server-side audio streaming.
-
-## Important Files
-
-- `supabase-schema-v2.sql` — database schema, tables, and RLS policies
-- `PROJECT_CONTEXT.md` — implementation notes and phase status
-- `Votify_V2_Architecture.md` — project vision and architecture
+Open `http://localhost:3000`.
 
 ---
 
-Built for fast crowd-sourced music sessions with modern static hosting and real-time sync.
+## Deployment (Netlify)
+
+1. Push the repo to GitHub.
+2. Connect the repository to [Netlify](https://netlify.com).
+3. Set the following environment variables in **Netlify → Site settings → Environment variables**:
+
+| Variable | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon/public key |
+| `VITE_DEPLOYED_URL` | Your Netlify site URL (e.g. `https://votify-delta.vercel.app`) |
+
+4. Deploy. Netlify runs `npm run build` and publishes the `dist/` folder automatically.
+5. In **Supabase → Authentication → URL Configuration**, add your Netlify URL as the Site URL and add it as an allowed Redirect URI.
+6. In **Supabase → Authentication → Providers → Google**, enable Google and add your Google OAuth credentials (from [Google Cloud Console](https://console.cloud.google.com)).
+
+---
+
+## Database Schema
+
+The full schema is in [`supabase-schema-v2.sql`](supabase-schema-v2.sql). Key tables:
+
+| Table | Purpose |
+|---|---|
+| `profiles` | Host accounts (linked to Supabase Auth) |
+| `rooms` | Room metadata (code, name, mode, PIN, status) |
+| `queue` | Songs in a room's queue with vote counts |
+| `votes_cast` | Per-participant vote records (deduplication) |
+| `skip_votes` | Per-participant skip votes |
+| `room_participants` | Presence tracking for active participants |
+| `room_bans` | Banned participant tokens per room |
+
+**Row Level Security is enabled on every table.** Participants can only read/write within rooms they have joined. All vote mutations go through `SECURITY DEFINER` RPCs to prevent direct vote count manipulation.
+
+---
+
+## Security
+
+- All credentials are stored as environment variables — never in source code.
+- The Supabase `anon` key is intentionally public; all data access is gated by RLS policies.
+- Participant identity is tracked via a persistent UUID in `localStorage` — this is a presence token, not an authentication boundary.
+- HTTP security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) are enforced via `netlify.toml`.
+- All user-controlled strings are HTML-escaped before rendering to prevent XSS.
+
+---
+
+## Contributing
+
+Pull requests are welcome. For major changes please open an issue first to discuss what you'd like to change.
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/your-idea`)
+3. Commit your changes
+4. Push and open a pull request against `main`
+
+---
+
+## License
+
+[MIT](LICENSE) — free to use, modify, and self-host.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ for live music sessions · Powered by Supabase + Netlify</sub>
+</div>

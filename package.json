@@ -1,11 +1,10 @@
 {
   "name": "votify",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Real-time, crowd-controlled YouTube music queue for live events",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:tokens": "node scripts/livekit-token-dev.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
