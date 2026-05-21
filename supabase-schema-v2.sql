@@ -490,15 +490,4 @@ CREATE POLICY "host can delete ban" ON room_bans
 
 
 -- ============================================================
--- ✅ Schema complete.
---
--- After running this script, if you have existing user accounts
--- whose profiles are broken, run this to fix them manually:
---
---   UPDATE public.profiles
---   SET username = 'your_desired_username'
---   WHERE email = 'your@email.com';
---
--- You can find user UUIDs in:
---   Supabase Dashboard → Authentication → Users
--- ============================================================
+
