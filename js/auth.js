@@ -128,10 +128,8 @@ export async function setupProfile({ userId, email, username, password }) {
 
   const { error: updateErr } = await supabase
     .from('profiles')
-    .upsert(
-      { id: userId, username: clean, email },
-      { onConflict: 'id' }
-    );
+    .update({ username: clean, email })
+    .eq('id', userId);
 
   if (updateErr) throw updateErr;
 
