@@ -126,12 +126,23 @@ export async function setupProfile({ userId, email, username, password }) {
 
   if (taken && taken.id !== userId) throw new Error('That username is already taken.');
 
-  const { error: updateErr } = await supabase
+  // Try to update the existing stub row (created by the on_auth_user_created trigger).
+  // If the trigger hasn't run yet, fall back to inserting the row directly.
+  const { error: updateErr, count } = await supabase
     .from('profiles')
     .update({ username: clean, email })
-    .eq('id', userId);
+    .eq('id', userId)
+    .select('id', { count: 'exact', head: true });
 
   if (updateErr) throw updateErr;
+
+  // count === 0 means the trigger row didn't exist yet — insert it directly.
+  if (count === 0) {
+    const { error: insertErr } = await supabase
+      .from('profiles')
+      .insert({ id: userId, username: clean, email });
+    if (insertErr) throw insertErr;
+  }
 
   if (password) {
     if (password.length < 8) throw new Error('Password must be at least 8 characters.');

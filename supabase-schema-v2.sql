@@ -342,6 +342,10 @@ ALTER TABLE room_bans         ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "profiles are publicly readable"
   ON profiles FOR SELECT USING (true);
 
+-- Users can insert their own profile row (needed as fallback if trigger races)
+CREATE POLICY "users can insert own profile"
+  ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- Only the owner can update their own profile
 CREATE POLICY "users can update own profile"
   ON profiles FOR UPDATE USING (auth.uid() = id);
