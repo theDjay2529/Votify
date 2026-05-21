@@ -67,7 +67,7 @@ Forgot a speaker for a party or jam session? Don't worry—just have everyone jo
 | 🚫 **Moderation** | Hosts can kick and ban participants from the session. |
 | ⏸️ **Pause & Resume** | Hosts can pause a room and come back later without losing queue state. |
 | 🔗 **QR Code Join** | Auto-generated QR code for instant participant joining. |
-| 🎶 **Listen Together** | Silent Disco mode — participants sync audio playback locally, host controls state. |
+| 🎶 **Listen Together** | Silent Disco mode — participants sync audio playback locally via global timestamps, host controls state. |
 | ⚡ **Real-time Sync** | All queue and vote changes push to every connected device instantly via Supabase Realtime. |
 
 ---
@@ -77,7 +77,7 @@ Forgot a speaker for a party or jam session? Don't worry—just have everyone jo
 - **Frontend** — Vanilla HTML, CSS, and ES Modules (no framework)
 - **Build** — [Vite](https://vitejs.dev)
 - **Backend** — [Supabase](https://supabase.com) (Postgres + Auth + RLS + Realtime)
-- **Hosting** — [Netlify](https://netlify.com) with Netlify Functions
+- **Hosting** — [Vercel](https://vercel.com)
 - **Playback** — YouTube IFrame Player API
 - **Search** — [Piped API](https://github.com/TeamPiped/Piped) (privacy-friendly YouTube proxy, no API key required)
 
@@ -105,10 +105,8 @@ votify/
 │   ├── join.js              # Room join flow (code → PIN → identity)
 │   └── participant.js       # Participant queue, voting, and search logic
 │
-├── css/                # Per-page stylesheets + global design tokens
-├── netlify/functions/  # Serverless function (LiveKit token endpoint)
-├── supabase-schema-v2.sql   # Full database schema with RLS policies
-└── netlify.toml        # Build config + HTTP security headers
+├── css/                     # Per-page stylesheets + global design tokens
+└── supabase-schema-v2.sql   # Full database schema with RLS policies
 ```
 
 ---
@@ -172,20 +170,20 @@ Open `http://localhost:3000`.
 
 ---
 
-## Deployment (Netlify)
+## Deployment (Vercel)
 
 1. Push the repo to GitHub.
-2. Connect the repository to [Netlify](https://netlify.com).
-3. Set the following environment variables in **Netlify → Site settings → Environment variables**:
+2. Import the repository on [Vercel](https://vercel.com).
+3. Set the following environment variables in **Vercel → Project Settings → Environment Variables**:
 
 | Variable | Description |
 |---|---|
 | `VITE_SUPABASE_URL` | Your Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase anon/public key |
-| `VITE_DEPLOYED_URL` | Your Netlify site URL (e.g. `https://votify-delta.vercel.app`) |
+| `VITE_DEPLOYED_URL` | Your Vercel deployment URL (e.g. `https://votify-delta.vercel.app`) |
 
-4. Deploy. Netlify runs `npm run build` and publishes the `dist/` folder automatically.
-5. In **Supabase → Authentication → URL Configuration**, add your Netlify URL as the Site URL and add it as an allowed Redirect URI.
+4. Deploy. Vercel runs `npm run build` and publishes the `dist/` folder automatically.
+5. In **Supabase → Authentication → URL Configuration**, add your Vercel URL as the Site URL and as an allowed Redirect URI.
 6. In **Supabase → Authentication → Providers → Google**, enable Google and add your Google OAuth credentials (from [Google Cloud Console](https://console.cloud.google.com)).
 
 ---
@@ -213,7 +211,6 @@ The full schema is in [`supabase-schema-v2.sql`](supabase-schema-v2.sql). Key ta
 - All credentials are stored as environment variables — never in source code.
 - The Supabase `anon` key is intentionally public; all data access is gated by RLS policies.
 - Participant identity is tracked via a persistent UUID in `localStorage` — this is a presence token, not an authentication boundary.
-- HTTP security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) are enforced via `netlify.toml`.
 - All user-controlled strings are HTML-escaped before rendering to prevent XSS.
 
 ---
@@ -236,5 +233,5 @@ Pull requests are welcome. For major changes please open an issue first to discu
 ---
 
 <div align="center">
-  <sub>Built with ❤️ for live music sessions · Powered by Supabase + Netlify</sub>
+  <sub>Built with ❤️ for live music sessions · Powered by Supabase + Vercel</sub>
 </div>

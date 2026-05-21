@@ -95,7 +95,6 @@ CREATE TABLE public.rooms (
   pin               TEXT        CHECK (pin IS NULL OR (length(pin) >= 4 AND length(pin) <= 8)),
   status            TEXT        DEFAULT 'active' CHECK (status IN ('active', 'paused', 'ended')),
   mode              TEXT        NOT NULL CHECK (mode IN ('queue', 'listen_together')),
-  livekit_room_name TEXT,
   is_saved          BOOLEAN     DEFAULT false,
   saved_at          TIMESTAMPTZ,
   created_at        TIMESTAMPTZ DEFAULT now(),

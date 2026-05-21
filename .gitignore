@@ -12,8 +12,8 @@ supabase/.env*
 !supabase/.env.example
 supabase/.temp/
 
-# ── Netlify local cache ───────────────────────────
-.netlify/
+# ── Vercel local cache ────────────────────────────
+.vercel/
 
 # ── Dev server log files ──────────────────────────
 *.log
