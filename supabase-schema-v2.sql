@@ -1,48 +1,70 @@
 -- ============================================================
---  🎧 VOTIFY V2 — Full Database Schema
---  Run this ENTIRE script in: Supabase Dashboard → SQL Editor → New Query
---  This is a CLEAN SLATE schema — safe for fresh projects.
+--  🎧 VOTIFY V2 — Full Database Schema (Final)
+--
+--  ⚠️  HOW TO USE:
+--  Run this ENTIRE script in:
+--    Supabase Dashboard → SQL Editor → New Query → Run
+--
+--  This is a CLEAN SLATE schema.
+--  It drops all existing Votify tables and recreates them.
+--  Safe to re-run on a fresh project.
+--
+--  Last updated: 2026-05-21
+--  Fixes applied:
+--    - profiles INSERT policy added (fixes RLS violation on signup)
+--    - handle_new_user trigger uses SECURITY DEFINER (bypasses RLS)
+--    - remove_vote RPC added
 -- ============================================================
 
--- Enable required extensions
+
+-- ============================================================
+-- EXTENSIONS
+-- ============================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ============================================================
--- CLEANUP (drop old V1 objects safely)
--- ============================================================
-DROP TRIGGER  IF EXISTS on_auth_user_created    ON auth.users;
-DROP TRIGGER  IF EXISTS queue_touches_room       ON queue;
-DROP FUNCTION IF EXISTS handle_new_user()        CASCADE;
-DROP FUNCTION IF EXISTS generate_room_code()     CASCADE;
-DROP FUNCTION IF EXISTS cast_upvote(UUID, TEXT)  CASCADE;
-DROP FUNCTION IF EXISTS cast_downvote(UUID, TEXT) CASCADE;
-DROP FUNCTION IF EXISTS verify_room_pin(TEXT, TEXT) CASCADE;
-DROP FUNCTION IF EXISTS expire_inactive_rooms()  CASCADE;
-DROP FUNCTION IF EXISTS touch_room_activity()    CASCADE;
-DROP FUNCTION IF EXISTS increment_vote(UUID)     CASCADE;
-DROP TABLE IF EXISTS room_bans         CASCADE;
-DROP TABLE IF EXISTS room_participants CASCADE;
-DROP TABLE IF EXISTS skip_votes        CASCADE;
-DROP TABLE IF EXISTS votes_cast        CASCADE;
-DROP TABLE IF EXISTS queue             CASCADE;
-DROP TABLE IF EXISTS rooms             CASCADE;
-DROP TABLE IF EXISTS profiles          CASCADE;
 
 -- ============================================================
--- PROFILES  (extends auth.users — one row per host account)
+-- CLEANUP — drop everything safely before recreating
+-- ============================================================
+DROP TRIGGER  IF EXISTS on_auth_user_created     ON auth.users;
+DROP TRIGGER  IF EXISTS queue_touches_room        ON queue;
+DROP FUNCTION IF EXISTS handle_new_user()         CASCADE;
+DROP FUNCTION IF EXISTS generate_room_code()      CASCADE;
+DROP FUNCTION IF EXISTS cast_upvote(UUID, TEXT)   CASCADE;
+DROP FUNCTION IF EXISTS cast_downvote(UUID, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS remove_vote(UUID, TEXT)   CASCADE;
+DROP FUNCTION IF EXISTS verify_room_pin(TEXT, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS expire_inactive_rooms()   CASCADE;
+DROP FUNCTION IF EXISTS touch_room_activity()     CASCADE;
+DROP FUNCTION IF EXISTS increment_vote(UUID)      CASCADE;
+DROP TABLE IF EXISTS room_bans          CASCADE;
+DROP TABLE IF EXISTS room_participants  CASCADE;
+DROP TABLE IF EXISTS skip_votes         CASCADE;
+DROP TABLE IF EXISTS votes_cast         CASCADE;
+DROP TABLE IF EXISTS queue              CASCADE;
+DROP TABLE IF EXISTS rooms              CASCADE;
+DROP TABLE IF EXISTS profiles           CASCADE;
+
+
+-- ============================================================
+-- TABLE: profiles
+-- One row per host account. Extends auth.users.
 -- ============================================================
 CREATE TABLE public.profiles (
   id            UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username      TEXT        UNIQUE NOT NULL CHECK (length(username) >= 6),
-  email         TEXT        NOT NULL,            -- cached for username+password lookup
+  email         TEXT        NOT NULL,       -- cached for username+password lookup
   avatar_url    TEXT,
   is_premium    BOOLEAN     DEFAULT false,
   premium_since TIMESTAMPTZ,
   created_at    TIMESTAMPTZ DEFAULT now()
 );
 
--- Auto-create a stub profile when a new user signs up via OAuth
+-- ── Trigger: auto-create a stub profile row on every new signup ──
+-- Runs as SECURITY DEFINER so it bypasses RLS (the user has no session yet).
+-- The stub username starts with 'user_' — isProfileComplete() checks for this
+-- and redirects to the setup overlay if the user hasn't picked a real username yet.
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -61,25 +83,26 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
+
 -- ============================================================
--- ROOMS
+-- TABLE: rooms
 -- ============================================================
 CREATE TABLE public.rooms (
-  id              UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
-  code            TEXT        UNIQUE NOT NULL,
-  name            TEXT        NOT NULL CHECK (length(trim(name)) > 0),
-  host_id         UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  pin             TEXT        CHECK (pin IS NULL OR (length(pin) >= 4 AND length(pin) <= 8)),
-  status          TEXT        DEFAULT 'active' CHECK (status IN ('active', 'paused', 'ended')),
-  mode            TEXT        NOT NULL CHECK (mode IN ('queue', 'listen_together')),
+  id                UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
+  code              TEXT        UNIQUE NOT NULL,
+  name              TEXT        NOT NULL CHECK (length(trim(name)) > 0),
+  host_id           UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  pin               TEXT        CHECK (pin IS NULL OR (length(pin) >= 4 AND length(pin) <= 8)),
+  status            TEXT        DEFAULT 'active' CHECK (status IN ('active', 'paused', 'ended')),
+  mode              TEXT        NOT NULL CHECK (mode IN ('queue', 'listen_together')),
   livekit_room_name TEXT,
-  is_saved        BOOLEAN     DEFAULT false,
-  saved_at        TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ DEFAULT now(),
-  last_active_at  TIMESTAMPTZ DEFAULT now()
+  is_saved          BOOLEAN     DEFAULT false,
+  saved_at          TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ DEFAULT now(),
+  last_active_at    TIMESTAMPTZ DEFAULT now()
 );
 
--- Enforce one active room per host at the DB level
+-- Only one active room per host at any time
 CREATE UNIQUE INDEX one_active_room_per_host
   ON rooms(host_id) WHERE status = 'active';
 
@@ -87,8 +110,9 @@ CREATE INDEX idx_rooms_code   ON rooms(code);
 CREATE INDEX idx_rooms_host   ON rooms(host_id);
 CREATE INDEX idx_rooms_status ON rooms(status);
 
+
 -- ============================================================
--- QUEUE  (scoped to a room)
+-- TABLE: queue  (songs scoped to a room)
 -- ============================================================
 CREATE TABLE public.queue (
   id            UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -119,8 +143,10 @@ CREATE TRIGGER queue_touches_room
   AFTER INSERT OR UPDATE ON queue
   FOR EACH ROW EXECUTE FUNCTION touch_room_activity();
 
+
 -- ============================================================
--- VOTES_CAST  (server-side vote deduplication — one per participant per item)
+-- TABLE: votes_cast
+-- Server-side vote deduplication — one vote per participant per queue item.
 -- ============================================================
 CREATE TABLE public.votes_cast (
   id                UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -131,8 +157,10 @@ CREATE TABLE public.votes_cast (
   UNIQUE (queue_id, participant_token)
 );
 
+
 -- ============================================================
--- SKIP_VOTES  (democratic skip — crossing 50% triggers a song skip)
+-- TABLE: skip_votes
+-- Democratic skip — when > 50% of participants vote to skip, the host skips.
 -- ============================================================
 CREATE TABLE public.skip_votes (
   id                UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -143,8 +171,9 @@ CREATE TABLE public.skip_votes (
   UNIQUE (room_id, queue_item_id, participant_token)
 );
 
+
 -- ============================================================
--- ROOM_PARTICIPANTS  (presence + activity tracking)
+-- TABLE: room_participants  (presence + activity tracking)
 -- ============================================================
 CREATE TABLE public.room_participants (
   id                UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -159,8 +188,9 @@ CREATE TABLE public.room_participants (
   UNIQUE (room_id, participant_token)
 );
 
+
 -- ============================================================
--- ROOM_BANS  (kick enforcement — checked by RLS)
+-- TABLE: room_bans  (kick enforcement)
 -- ============================================================
 CREATE TABLE public.room_bans (
   id                UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -173,6 +203,7 @@ CREATE TABLE public.room_bans (
   UNIQUE (room_id, user_id)
 );
 
+
 -- ============================================================
 -- REALTIME PUBLICATIONS
 -- ============================================================
@@ -182,15 +213,17 @@ ALTER PUBLICATION supabase_realtime ADD TABLE skip_votes;
 ALTER PUBLICATION supabase_realtime ADD TABLE room_participants;
 ALTER PUBLICATION supabase_realtime ADD TABLE room_bans;
 
+
 -- ============================================================
 -- RPC: generate_room_code
--- Produces a unique 6-char alphanumeric code (no ambiguous chars)
+-- Generates a unique 6-character alphanumeric room code.
+-- Excludes ambiguous characters (0, O, I, 1).
 -- ============================================================
 CREATE OR REPLACE FUNCTION generate_room_code()
 RETURNS TEXT AS $$
 DECLARE
-  chars TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  code  TEXT := '';
+  chars TEXT    := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  code  TEXT    := '';
   i     INTEGER;
 BEGIN
   LOOP
@@ -206,16 +239,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- ============================================================
 -- RPC: verify_room_pin
--- Called by participants — returns true if pin matches (or room has no pin)
--- SECURITY DEFINER so participants cannot directly read pin column
+-- Called by participants — returns true if PIN matches or room has no PIN.
+-- SECURITY DEFINER so participants cannot directly read the pin column.
 -- ============================================================
 CREATE OR REPLACE FUNCTION verify_room_pin(p_code TEXT, p_pin TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE
   room_pin TEXT;
-  found    BOOLEAN;
 BEGIN
   SELECT pin INTO room_pin
   FROM rooms
@@ -229,12 +262,13 @@ BEGIN
     RETURN true; -- No PIN required
   END IF;
 
-  RETURN room_pin = p_pin; -- Plain text comparison (PIN is low-security by design)
+  RETURN room_pin = p_pin;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+
 -- ============================================================
--- RPC: cast_upvote  (atomic, handles vote-switching)
+-- RPC: cast_upvote  (atomic — handles vote switching)
 -- ============================================================
 CREATE OR REPLACE FUNCTION cast_upvote(p_queue_id UUID, p_token TEXT)
 RETURNS VOID AS $$
@@ -250,19 +284,19 @@ BEGIN
     UPDATE queue SET upvotes = upvotes + 1 WHERE id = p_queue_id;
 
   ELSIF existing = 'down' THEN
-    -- Switch from downvote to upvote
     UPDATE votes_cast SET vote_type = 'up'
     WHERE queue_id = p_queue_id AND participant_token = p_token;
     UPDATE queue SET upvotes = upvotes + 1, downvotes = downvotes - 1
     WHERE id = p_queue_id;
 
   END IF;
-  -- existing = 'up': already upvoted, idempotent no-op
+  -- existing = 'up': already upvoted — idempotent no-op
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+
 -- ============================================================
--- RPC: cast_downvote  (atomic, handles vote-switching)
+-- RPC: cast_downvote  (atomic — handles vote switching)
 -- ============================================================
 CREATE OR REPLACE FUNCTION cast_downvote(p_queue_id UUID, p_token TEXT)
 RETURNS VOID AS $$
@@ -278,19 +312,19 @@ BEGIN
     UPDATE queue SET downvotes = downvotes + 1 WHERE id = p_queue_id;
 
   ELSIF existing = 'up' THEN
-    -- Switch from upvote to downvote
     UPDATE votes_cast SET vote_type = 'down'
     WHERE queue_id = p_queue_id AND participant_token = p_token;
     UPDATE queue SET downvotes = downvotes + 1, upvotes = upvotes - 1
     WHERE id = p_queue_id;
 
   END IF;
-  -- existing = 'down': already downvoted, idempotent no-op
+  -- existing = 'down': already downvoted — idempotent no-op
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+
 -- ============================================================
--- RPC: remove_vote  (atomic, handles returning to neutral)
+-- RPC: remove_vote  (atomic — returns vote to neutral)
 -- ============================================================
 CREATE OR REPLACE FUNCTION remove_vote(p_queue_id UUID, p_token TEXT)
 RETURNS VOID AS $$
@@ -307,13 +341,15 @@ BEGIN
     DELETE FROM votes_cast WHERE queue_id = p_queue_id AND participant_token = p_token;
     UPDATE queue SET downvotes = downvotes - 1 WHERE id = p_queue_id;
   END IF;
+  -- existing = NULL: no vote to remove — idempotent no-op
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- ============================================================
 -- RPC: expire_inactive_rooms
--- Schedule via Supabase Edge Function cron or pg_cron
+-- Ends rooms that have been inactive for over 24 hours.
+-- Schedule via Supabase Edge Functions (cron) or pg_cron.
 -- ============================================================
 CREATE OR REPLACE FUNCTION expire_inactive_rooms()
 RETURNS VOID AS $$
@@ -326,6 +362,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
@@ -337,78 +374,95 @@ ALTER TABLE skip_votes        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE room_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE room_bans         ENABLE ROW LEVEL SECURITY;
 
--- ── Profiles ─────────────────────────────────────────────────
--- Public reads (username/avatar shown to room participants)
+
+-- ── profiles ──────────────────────────────────────────────────
+-- Anyone can read profiles (usernames/avatars shown in rooms).
 CREATE POLICY "profiles are publicly readable"
   ON profiles FOR SELECT USING (true);
 
--- Users can insert their own profile row (needed as fallback if trigger races)
+-- A user can insert their own profile row.
+-- This is the fallback for when the handle_new_user trigger races the client.
+-- The trigger (SECURITY DEFINER) handles the normal case; this policy covers
+-- the edge case where the client reaches setupProfile before the trigger completes.
 CREATE POLICY "users can insert own profile"
   ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Only the owner can update their own profile
+-- Only the owner can update their own profile.
 CREATE POLICY "users can update own profile"
   ON profiles FOR UPDATE USING (auth.uid() = id);
 
--- ── Rooms ─────────────────────────────────────────────────────
--- Anyone can read active or paused rooms (participants need to see paused state)
+
+-- ── rooms ──────────────────────────────────────────────────────
+-- Anyone can read active or paused rooms (participants need paused state).
 CREATE POLICY "active rooms are publicly readable"
   ON rooms FOR SELECT USING (status IN ('active', 'paused') OR auth.uid() = host_id);
 
--- Only authenticated users can create rooms (and only as themselves)
+-- Only authenticated users can create rooms (and only as themselves).
 CREATE POLICY "authenticated users can create rooms"
   ON rooms FOR INSERT
   WITH CHECK (auth.uid() IS NOT NULL AND auth.uid() = host_id);
 
--- Only the host can update their own room
+-- Only the host can update their own room.
 CREATE POLICY "host can manage their room"
   ON rooms FOR UPDATE USING (auth.uid() = host_id);
 
--- Only the host can delete their own room
+-- Only the host can delete their own room.
 CREATE POLICY "host can delete their room"
   ON rooms FOR DELETE USING (auth.uid() = host_id);
 
--- ── Queue ─────────────────────────────────────────────────────
--- Anyone can read queue items (safe, needed for Realtime to broadcast without subquery issues)
+
+-- ── queue ──────────────────────────────────────────────────────
+-- Anyone can read queue items (required for Realtime to work correctly).
 CREATE POLICY "queue readable for all"
   ON queue FOR SELECT USING (true);
 
--- Anyone can add to an active room's queue (participants)
+-- Anyone can add songs to an active room's queue.
 CREATE POLICY "anyone can add to active room queue"
   ON queue FOR INSERT
   WITH CHECK (EXISTS (
     SELECT 1 FROM rooms WHERE rooms.id = queue.room_id AND rooms.status = 'active'
   ));
 
--- Note: direct queue UPDATE for voting is intentionally NOT allowed.
--- All vote changes go through the cast_upvote / cast_downvote / remove_vote
--- SECURITY DEFINER RPCs which bypass RLS and enforce atomicity.
+-- Direct queue UPDATE for vote counts is intentionally blocked.
+-- All vote changes go through cast_upvote / cast_downvote / remove_vote
+-- (SECURITY DEFINER RPCs) which bypass RLS and enforce atomicity.
 -- This prevents a malicious user from setting upvotes=9999 via direct API call.
 
--- Host can update any queue row in their room (e.g. mark as played, remove)
+-- Host can update any queue row in their room (mark as played, reorder, remove).
 CREATE POLICY "host can update any queue row"
   ON queue FOR UPDATE
   USING (EXISTS (
     SELECT 1 FROM rooms WHERE rooms.id = queue.room_id AND rooms.host_id = auth.uid()
   ));
 
--- ── Votes Cast ────────────────────────────────────────────────
-CREATE POLICY "votes readable" ON votes_cast FOR SELECT USING (true);
-CREATE POLICY "anyone can insert vote" ON votes_cast FOR INSERT WITH CHECK (true);
-CREATE POLICY "anyone can update vote" ON votes_cast FOR UPDATE USING (true);
+-- Host can delete queue rows in their room.
+CREATE POLICY "host can delete queue row"
+  ON queue FOR DELETE
+  USING (EXISTS (
+    SELECT 1 FROM rooms WHERE rooms.id = queue.room_id AND rooms.host_id = auth.uid()
+  ));
 
--- ── Skip Votes ────────────────────────────────────────────────
-CREATE POLICY "skip votes readable" ON skip_votes FOR SELECT USING (true);
-CREATE POLICY "anyone can insert skip vote" ON skip_votes FOR INSERT WITH CHECK (true);
+
+-- ── votes_cast ─────────────────────────────────────────────────
+-- All vote operations go through SECURITY DEFINER RPCs, but RLS still
+-- needs to allow the underlying operations those RPCs perform.
+CREATE POLICY "votes readable"          ON votes_cast FOR SELECT USING (true);
+CREATE POLICY "anyone can insert vote"  ON votes_cast FOR INSERT WITH CHECK (true);
+CREATE POLICY "anyone can update vote"  ON votes_cast FOR UPDATE USING (true);
+CREATE POLICY "anyone can delete vote"  ON votes_cast FOR DELETE USING (true);
+
+
+-- ── skip_votes ─────────────────────────────────────────────────
+CREATE POLICY "skip votes readable"            ON skip_votes FOR SELECT USING (true);
+CREATE POLICY "anyone can insert skip vote"    ON skip_votes FOR INSERT WITH CHECK (true);
 CREATE POLICY "anyone can delete own skip vote" ON skip_votes FOR DELETE USING (true);
 
--- ── Room Participants ─────────────────────────────────────────
-CREATE POLICY "participants readable" ON room_participants FOR SELECT USING (true);
-CREATE POLICY "anyone can upsert participant" ON room_participants
-  FOR INSERT WITH CHECK (true);
-CREATE POLICY "anyone can update own participant row" ON room_participants
-  FOR UPDATE USING (true);
-CREATE POLICY "host can delete participant" ON room_participants
+
+-- ── room_participants ──────────────────────────────────────────
+CREATE POLICY "participants readable"             ON room_participants FOR SELECT USING (true);
+CREATE POLICY "anyone can upsert participant"     ON room_participants FOR INSERT WITH CHECK (true);
+CREATE POLICY "anyone can update participant row" ON room_participants FOR UPDATE USING (true);
+CREATE POLICY "host can delete participant"       ON room_participants
   FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM rooms
@@ -416,8 +470,9 @@ CREATE POLICY "host can delete participant" ON room_participants
     )
   );
 
--- ── Room Bans ─────────────────────────────────────────────────
-CREATE POLICY "bans readable" ON room_bans FOR SELECT USING (true);
+
+-- ── room_bans ──────────────────────────────────────────────────
+CREATE POLICY "bans readable"      ON room_bans FOR SELECT USING (true);
 CREATE POLICY "host can insert ban" ON room_bans
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -432,3 +487,18 @@ CREATE POLICY "host can delete ban" ON room_bans
       WHERE rooms.id = room_bans.room_id AND rooms.host_id = auth.uid()
     )
   );
+
+
+-- ============================================================
+-- ✅ Schema complete.
+--
+-- After running this script, if you have existing user accounts
+-- whose profiles are broken, run this to fix them manually:
+--
+--   UPDATE public.profiles
+--   SET username = 'your_desired_username'
+--   WHERE email = 'your@email.com';
+--
+-- You can find user UUIDs in:
+--   Supabase Dashboard → Authentication → Users
+-- ============================================================

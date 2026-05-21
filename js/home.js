@@ -40,7 +40,8 @@ function confirmDialog(title, message) {
 
 // ── Load Profile ──────────────────────────────────────────────
 const profile = await getProfile(user.id);
-const displayName = profile?.username || user.email?.split('@')[0] || 'Host';
+// Use profile username; fall back to Google display name; never use raw email.
+const displayName = profile?.username || user.user_metadata?.full_name?.split(' ')[0] || 'Host';
 document.getElementById('home-username').textContent = `@${displayName}`;
 document.getElementById('home-greeting').textContent = `Welcome back, ${displayName} 👋`;
 

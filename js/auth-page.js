@@ -18,19 +18,33 @@ function showToast(msg, type = 'info') {
   setTimeout(() => { t.classList.add('toast-exit'); setTimeout(() => t.remove(), 300); }, 3500);
 }
 
-// ── Redirect if already authenticated ────────────────────────
+// ── Profile Setup Overlay ─────────────────────────────────────
+let pendingUser = null;
+let setupShown = false; // prevent double-show from concurrent events
+
+function showSetupOverlay(user) {
+  if (setupShown) return;
+  setupShown = true;
+  pendingUser = user;
+  document.getElementById('setup-overlay').classList.remove('hidden');
+}
+
+// ── Route based on profile state ─────────────────────────────
+// Single source of truth: called by both the init check and the OAuth callback.
+async function routeByProfile(user) {
+  const profile = await getProfile(user.id);
+  if (isProfileComplete(profile)) {
+    window.location.replace('home.html');
+  } else {
+    showSetupOverlay(user);
+  }
+}
+
+// ── Init: check if already signed in ─────────────────────────
 async function checkExistingSession() {
   const session = await getSession();
   if (!session) return;
-
-  const profile = await getProfile(session.user.id);
-  if (!profile || !isProfileComplete(profile)) {
-    // New user — show setup overlay
-    showSetupOverlay(session.user);
-  } else {
-    // Already fully set up — go to home screen
-    window.location.replace('home.html');
-  }
+  await routeByProfile(session.user);
 }
 
 // ── Google Sign-In ───────────────────────────────────────────
@@ -63,7 +77,7 @@ form.addEventListener('submit', async (e) => {
 
   try {
     await signInWithUsername(username, password);
-    window.location.replace('home.html');
+    // onAuthStateChange will handle the redirect after sign-in
   } catch (err) {
     formError.textContent = err.message;
     formError.classList.remove('hidden');
@@ -83,14 +97,7 @@ document.getElementById('btn-toggle-pw').addEventListener('click', () => {
   hide.classList.toggle('hidden', !isHidden);
 });
 
-// ── Profile Setup Overlay ─────────────────────────────────────
-let pendingUser = null;
-
-function showSetupOverlay(user) {
-  pendingUser = user;
-  document.getElementById('setup-overlay').classList.remove('hidden');
-}
-
+// ── Setup Form Submit ─────────────────────────────────────────
 document.getElementById('setup-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const username = document.getElementById('setup-username').value;
@@ -120,22 +127,18 @@ document.getElementById('setup-form').addEventListener('submit', async (e) => {
 });
 
 // ── Handle OAuth Callback ─────────────────────────────────────
-// Supabase fires an auth state change when returning from Google redirect
+// Only react to SIGNED_IN (the OAuth return redirect), NOT TOKEN_REFRESHED
+// (which fires on every page load and would incorrectly re-show the setup overlay).
 supabase.auth.onAuthStateChange(async (event, session) => {
-  try {
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
-      const profile = await getProfile(session.user.id);
-      if (!profile || !isProfileComplete(profile)) {
-        showSetupOverlay(session.user);
-      } else {
-        window.location.replace('home.html');
-      }
+  if (event === 'SIGNED_IN' && session) {
+    try {
+      await routeByProfile(session.user);
+    } catch (err) {
+      console.error('Auth state change error:', err);
+      showToast('Authentication error. Try again.', 'error');
+      document.getElementById('btn-submit').textContent = 'Sign In';
+      document.getElementById('btn-submit').disabled = false;
     }
-  } catch (err) {
-    console.error('Auth state change error:', err);
-    showToast('Authentication error. Try again.', 'error');
-    document.getElementById('btn-submit').textContent = 'Sign In';
-    document.getElementById('btn-submit').disabled = false;
   }
 });
 

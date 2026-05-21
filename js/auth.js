@@ -71,6 +71,7 @@ export async function signInWithUsername(username, password) {
 
   if (profileErr) throw new Error('Failed to look up account. Please try again.');
   if (!profile) throw new Error('No account found with that username.');
+  if (!profile.email) throw new Error('This account does not have a password set. Please sign in with Google.');
 
   const { error } = await supabase.auth.signInWithPassword({
     email: profile.email,
@@ -78,8 +79,11 @@ export async function signInWithUsername(username, password) {
   });
 
   if (error) {
-    if (error.message.includes('Invalid login')) {
+    if (error.message.toLowerCase().includes('invalid login') || error.message.toLowerCase().includes('invalid credentials')) {
       throw new Error('Incorrect password. Please try again.');
+    }
+    if (error.message.toLowerCase().includes('email not confirmed')) {
+      throw new Error('Please confirm your email address before signing in.');
     }
     throw error;
   }
@@ -92,19 +96,24 @@ export async function signOut() {
 }
 
 // ── Profile Helpers ──────────────────────────────────────────
+// Uses maybeSingle() so it never throws — returns null if no row exists.
 export async function getProfile(userId) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
+  if (error) {
+    console.error('[Votify] getProfile error:', error);
+    return null;
+  }
   return data;
 }
 
 // A profile is "complete" once the host has set a real username
 // (the auto-generated stub starts with 'user_')
 export function isProfileComplete(profile) {
-  return profile && !profile.username.startsWith('user_');
+  return profile && profile.username && !profile.username.startsWith('user_');
 }
 
 // ── First-Time Profile Setup ─────────────────────────────────
@@ -126,34 +135,41 @@ export async function setupProfile({ userId, email, username, password }) {
 
   if (taken && taken.id !== userId) throw new Error('That username is already taken.');
 
-  // Try to update the existing stub row (created by the on_auth_user_created trigger).
-  // If the trigger hasn't run yet, fall back to inserting the row directly.
-  const { error: updateErr, count } = await supabase
-    .from('profiles')
-    .update({ username: clean, email })
-    .eq('id', userId)
-    .select('id', { count: 'exact', head: true });
-
-  if (updateErr) throw updateErr;
-
-  // count === 0 means the trigger row didn't exist yet — insert it directly.
-  if (count === 0) {
-    const { error: insertErr } = await supabase
-      .from('profiles')
-      .insert({ id: userId, username: clean, email });
-    if (insertErr) throw insertErr;
-  }
-
+  // Step 1: Set password FIRST (if provided).
+  // We do this before saving the profile so that if the password call fails,
+  // the user sees the error and can try again — not a silent failure.
   if (password) {
     if (password.length < 8) throw new Error('Password must be at least 8 characters.');
     const { error: pwErr } = await supabase.auth.updateUser({ password });
     if (pwErr) {
-      // Supabase rejects if the new password is the same as the old one.
-      // This is non-fatal — the account is still valid. Just skip it.
-      if (!pwErr.message.toLowerCase().includes('different')) {
-        throw pwErr;
+      // "same password" is non-fatal for re-runs, everything else is a real error.
+      const msg = pwErr.message.toLowerCase();
+      if (!msg.includes('different from') && !msg.includes('same password')) {
+        throw new Error('Failed to set password: ' + pwErr.message);
       }
-      // else: same password → silently ignore, profile save still succeeds.
     }
+  }
+
+  // Step 2: Upsert the profile row.
+  // We use upsert so it works whether the trigger stub exists or not.
+  // The INSERT policy (auth.uid() = id) allows this when the trigger races.
+  const { error: upsertErr } = await supabase
+    .from('profiles')
+    .upsert(
+      { id: userId, username: clean, email },
+      { onConflict: 'id' }
+    );
+
+  if (upsertErr) throw upsertErr;
+
+  // Step 3: Verify the save actually worked.
+  const { data: saved } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!saved || saved.username !== clean) {
+    throw new Error('Profile save failed — please try again.');
   }
 }
