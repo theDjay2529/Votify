@@ -221,20 +221,20 @@ ALTER PUBLICATION supabase_realtime ADD TABLE room_bans;
 CREATE OR REPLACE FUNCTION generate_room_code()
 RETURNS TEXT AS $$
 DECLARE
-  chars TEXT    := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  code  TEXT    := '';
-  i     INTEGER;
+  chars   TEXT    := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  v_code  TEXT    := '';
+  i       INTEGER;
 BEGIN
   LOOP
-    code := '';
+    v_code := '';
     FOR i IN 1..6 LOOP
-      code := code || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+      v_code := v_code || substr(chars, floor(random() * length(chars) + 1)::int, 1);
     END LOOP;
     EXIT WHEN NOT EXISTS (
-      SELECT 1 FROM rooms WHERE rooms.code = code AND status = 'active'
+      SELECT 1 FROM rooms WHERE rooms.code = v_code AND rooms.status = 'active'
     );
   END LOOP;
-  RETURN code;
+  RETURN v_code;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -251,7 +251,7 @@ DECLARE
 BEGIN
   SELECT pin INTO room_pin
   FROM rooms
-  WHERE code = upper(p_code) AND status = 'active';
+  WHERE rooms.code = upper(p_code) AND rooms.status = 'active';
 
   IF NOT FOUND THEN
     RETURN false; -- Room doesn't exist or is not active
