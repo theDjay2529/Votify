@@ -23,21 +23,20 @@ export async function createRoom({ name, mode, pin }) {
   const { data: code, error: codeErr } = await supabase.rpc('generate_room_code');
   if (codeErr) throw codeErr;
 
-  const { data, error } = await supabase
-    .from('rooms')
-    .insert({
-      code,
-      name: name.trim(),
-      host_id: user.id,
-      mode,
-      pin: pin ? String(pin).trim() : null,
-      status: 'active',
-    })
-    .select('id, code, name, mode, pin')
-    .single();
+  // Use the create_room RPC so the PIN is hashed server-side (bcrypt via pgcrypto).
+  // The raw PIN never touches the DB directly.
+  const { data, error } = await supabase.rpc('create_room', {
+    p_code: code,
+    p_name: name.trim(),
+    p_mode: mode,
+    p_pin:  pin ? String(pin).trim() : null,
+  });
 
   if (error) throw error;
-  return data;
+  // RPC returns an array of rows; take the first.
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('Room creation failed — no data returned.');
+  return row; // { id, code, name, mode, has_pin }
 }
 
 // ── Get Active Room for a Host ───────────────────────────────
@@ -55,15 +54,29 @@ export async function getActiveRoom(hostId) {
 
 // ── Get Full Room Data (authenticated host only) ─────────────
 // Returns active OR paused rooms so host can rejoin paused sessions.
+// ⚠️  The `pin` column is intentionally excluded — it now contains a
+//     bcrypt hash and should never be sent to the client. Use `has_pin`
+//     (a computed boolean) to know whether a PIN exists.
 export async function getRoomForHost(code) {
   const { data, error } = await supabase
     .from('rooms')
-    .select('*')
+    .select('id, code, name, host_id, mode, status, is_saved, saved_at, created_at, last_active_at')
     .eq('code', code.toUpperCase())
     .in('status', ['active', 'paused'])
     .single();
 
   if (error) return null;
+
+  // Determine has_pin separately via the verify RPC (empty string returns false
+  // if a PIN is set, true if no PIN is required).
+  if (data) {
+    const { data: noPinNeeded } = await supabase.rpc('verify_room_pin', {
+      p_code: data.code,
+      p_pin: '',
+    });
+    data.has_pin = !noPinNeeded;
+  }
+
   return data;
 }
 
@@ -211,12 +224,13 @@ export async function upsertParticipant(roomId, token, displayName, isGuest) {
 }
 
 // ── Remove Participant on Voluntary Leave ─────────────────────
+// Routes through the leave_room RPC so the server validates the
+// token match — a raw DELETE with USING (true) could be abused.
 export async function removeParticipant(roomId, participantToken) {
-  const { error } = await supabase
-    .from('room_participants')
-    .delete()
-    .eq('room_id', roomId)
-    .eq('participant_token', participantToken);
+  const { error } = await supabase.rpc('leave_room', {
+    p_room_id: roomId,
+    p_token:   participantToken,
+  });
   if (error) console.error('[Votify] Remove participant error:', error);
 }
 

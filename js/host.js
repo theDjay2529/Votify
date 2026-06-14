@@ -66,9 +66,9 @@ async function init() {
   document.getElementById('display-room-name').textContent = roomData.name;
   document.getElementById('display-room-code').textContent = roomData.code;
   
-  if (roomData.pin) {
+  if (roomData.has_pin) {
     document.getElementById('pin-reveal-row')?.classList.remove('hidden');
-    document.getElementById('display-room-pin').textContent = '••••';
+    document.getElementById('display-room-pin').textContent = 'PIN is set';
   }
 
   // 4. QR Code
@@ -895,13 +895,9 @@ document.getElementById('tab-history')?.addEventListener('click', async () => {
 
 
 document.getElementById('btn-toggle-pin')?.addEventListener('click', () => {
-  isPinVisible = !isPinVisible;
-  const pinEl     = document.getElementById('display-room-pin');
-  const eyeOpen   = document.getElementById('eye-open');
-  const eyeClosed = document.getElementById('eye-closed');
-  pinEl.textContent = isPinVisible ? roomData.pin : '••••';
-  eyeOpen.classList.toggle('hidden', isPinVisible);
-  eyeClosed.classList.toggle('hidden', !isPinVisible);
+  // The PIN is stored as a bcrypt hash and is never sent to the client.
+  // We can only tell the host whether a PIN is set, not what it is.
+  showToast('PIN cannot be retrieved — it is stored securely. Share it with participants directly.', 'info');
 });
 
 let isBlurred = false;

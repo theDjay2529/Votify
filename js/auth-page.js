@@ -65,11 +65,46 @@ document.getElementById('btn-google').addEventListener('click', async () => {
 const form = document.getElementById('auth-form');
 const formError = document.getElementById('form-error');
 
+// ── Login Rate Limiting ───────────────────────────────────────
+// Prevents brute-force password guessing at the UI layer.
+// Supabase also rate-limits on the server, but this adds a fast
+// client-side check with visible feedback.
+let loginAttempts = 0;
+let lockoutUntil = 0;
+let lockoutTimer = null;
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS   = 30_000; // 30 seconds
+
+function startLockoutCountdown(submitBtn) {
+  if (lockoutTimer) clearInterval(lockoutTimer);
+  lockoutTimer = setInterval(() => {
+    const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+    if (remaining <= 0) {
+      clearInterval(lockoutTimer);
+      lockoutTimer = null;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign In';
+      formError.classList.add('hidden');
+    } else {
+      submitBtn.disabled = true;
+      submitBtn.textContent = `Too many attempts — wait ${remaining}s`;
+    }
+  }, 500);
+}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const username = document.getElementById('input-username').value.trim();
   const password = document.getElementById('input-password').value;
   const submitBtn = document.getElementById('btn-submit');
+
+  // ── Rate limit check ──
+  if (Date.now() < lockoutUntil) {
+    const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+    formError.textContent = `Too many failed attempts. Please wait ${remaining}s before trying again.`;
+    formError.classList.remove('hidden');
+    return;
+  }
 
   formError.classList.add('hidden');
   submitBtn.disabled = true;
@@ -77,12 +112,24 @@ form.addEventListener('submit', async (e) => {
 
   try {
     await signInWithUsername(username, password);
+    // Success — reset attempt counter.
+    loginAttempts = 0;
     // onAuthStateChange will handle the redirect after sign-in
   } catch (err) {
-    formError.textContent = err.message;
-    formError.classList.remove('hidden');
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Sign In';
+    // Increment attempt counter on failure.
+    loginAttempts++;
+    if (loginAttempts >= MAX_ATTEMPTS) {
+      lockoutUntil = Date.now() + LOCKOUT_MS;
+      loginAttempts = 0;
+      formError.textContent = `Too many failed attempts. Please wait 30 seconds before trying again.`;
+      formError.classList.remove('hidden');
+      startLockoutCountdown(submitBtn);
+    } else {
+      formError.textContent = err.message;
+      formError.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign In';
+    }
   }
 });
 
