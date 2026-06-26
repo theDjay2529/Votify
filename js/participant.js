@@ -25,6 +25,9 @@ let listenPlayer = null;
 let isListenPlayerReady = false;
 let isListeningActive = false;
 let lastSongUpdatedAt = 0;
+let playbackOffset = parseFloat(localStorage.getItem('votify_playback_offset') || '0');
+let lastPlaybackPayload = null;
+let lastPlaybackPayloadReceivedTime = 0;
 
 // ── DOM Elements ──
 const searchInput     = document.getElementById('search-input');
@@ -50,6 +53,10 @@ const btnStartListening = document.getElementById('btn-start-listening');
 const btnResyncAudio  = document.getElementById('btn-resync-audio');
 const listenVolume    = document.getElementById('listen-volume');
 const listenAudioContainer = document.getElementById('listen-audio-container');
+const offsetControlPanel = document.getElementById('offset-control-panel');
+const btnOffsetMinus = document.getElementById('btn-offset-minus');
+const btnOffsetPlus = document.getElementById('btn-offset-plus');
+const offsetValueDisplay = document.getElementById('offset-value-display');
 
 // ── Init ─────────────────────────────────────────────────────
 async function init() {
@@ -185,13 +192,36 @@ function setupListenTogetherParticipant() {
 
   btnStartListening?.addEventListener('click', startListening);
   
-  // Resync button allows manual nudge
+  // Set initial display of offset
+  if (offsetValueDisplay) {
+    offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(1) + 's';
+  }
+
+  // Resync button expands menu and triggers immediate sync
   btnResyncAudio?.addEventListener('click', () => {
-     if (listenPlayer && isListenPlayerReady && currentSong) {
-        listenPlayer.pauseVideo();
-        setListenStatus('Resyncing...');
-        // The next broadcast ping from host will resume it in sync.
-     }
+    if (offsetControlPanel && offsetControlPanel.classList.contains('hidden')) {
+      offsetControlPanel.classList.remove('hidden');
+    }
+    triggerImmediateSync();
+  });
+
+  // Manual Offset adjustments
+  btnOffsetMinus?.addEventListener('click', () => {
+    playbackOffset -= 0.5;
+    localStorage.setItem('votify_playback_offset', playbackOffset);
+    if (offsetValueDisplay) {
+      offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(1) + 's';
+    }
+    highlightResyncButton();
+  });
+
+  btnOffsetPlus?.addEventListener('click', () => {
+    playbackOffset += 0.5;
+    localStorage.setItem('votify_playback_offset', playbackOffset);
+    if (offsetValueDisplay) {
+      offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(1) + 's';
+    }
+    highlightResyncButton();
   });
 
   listenVolume?.addEventListener('input', (e) => {
@@ -199,6 +229,48 @@ function setupListenTogetherParticipant() {
       listenPlayer.setVolume(e.target.value);
     }
   });
+}
+
+function highlightResyncButton() {
+  if (!btnResyncAudio) return;
+  btnResyncAudio.style.background = 'var(--accent-gradient)';
+  btnResyncAudio.style.color = 'white';
+  btnResyncAudio.style.boxShadow = 'var(--shadow-glow-purple)';
+  btnResyncAudio.style.borderColor = 'transparent';
+}
+
+function clearResyncHighlight() {
+  if (!btnResyncAudio) return;
+  btnResyncAudio.style.background = '';
+  btnResyncAudio.style.color = '';
+  btnResyncAudio.style.boxShadow = '';
+  btnResyncAudio.style.borderColor = '';
+}
+
+function triggerImmediateSync() {
+  if (!lastPlaybackPayload || !isListeningActive || !isListenPlayerReady || !listenPlayer) {
+    setListenStatus('Playback not active or player not ready.');
+    return;
+  }
+  if (lastPlaybackPayload.songId !== currentSong?.id) return;
+
+  if (lastPlaybackPayload.isPlaying) {
+    // High precision correction: add age of the last payload to the current playback sync point
+    const payloadAgeSeconds = (Date.now() - lastPlaybackPayloadReceivedTime) / 1000;
+    const expectedTime = lastPlaybackPayload.currentTime + payloadAgeSeconds + 0.05 + playbackOffset;
+    
+    listenPlayer.seekTo(expectedTime, true);
+    if (listenPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
+      listenPlayer.playVideo();
+    }
+    setListenStatus('Playing in sync with host.');
+  } else {
+    if (listenPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+      listenPlayer.pauseVideo();
+      setListenStatus('Host paused playback.');
+    }
+  }
+  clearResyncHighlight();
 }
 
 async function startListening() {
@@ -584,9 +656,13 @@ function setupRealtime() {
       if (!isListeningActive || !isListenPlayerReady || !listenPlayer) return;
       if (payload.songId !== currentSong?.id) return;
 
+      // Cache the last received sync message and timestamp
+      lastPlaybackPayload = payload;
+      lastPlaybackPayloadReceivedTime = Date.now();
+
       if (payload.isPlaying) {
-        // High precision sync: adjust by small latency estimate
-        const expectedTime = payload.currentTime + 0.05;
+        // High precision sync: adjust by latency estimate and client offset
+        const expectedTime = payload.currentTime + 0.05 + playbackOffset;
         const myTime = listenPlayer.getCurrentTime() || 0;
         
         if (listenPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
