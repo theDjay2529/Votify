@@ -491,7 +491,13 @@ function renderQueueList() {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (await showConfirm('Remove Song', 'Remove this song from the queue?')) {
-        await supabase.from('queue').update({ played: true }).eq('id', btn.dataset.id);
+        const { error } = await supabase.from('queue').update({ played: true }).eq('id', btn.dataset.id);
+        if (!error) {
+          await refreshQueue();
+          await refreshPlayedCount();
+        } else {
+          showToast('Failed to remove song', 'error');
+        }
       }
     });
   });
@@ -884,6 +890,8 @@ document.getElementById('btn-clear-queue').addEventListener('click', async () =>
         showToast('Failed to clear queue', 'error');
       } else {
         showToast('Queue cleared', 'info');
+        await refreshQueue();
+        await refreshPlayedCount();
       }
     }
   } else {
