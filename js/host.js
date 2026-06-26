@@ -871,9 +871,32 @@ document.getElementById('btn-skip-track').addEventListener('click', () => {
 });
 
 document.getElementById('btn-clear-queue').addEventListener('click', async () => {
-  if (await showConfirm('Clear Queue', 'Clear all upcoming songs?')) {
-    await supabase.from('queue').update({ played: true }).eq('room_id', roomData.id).eq('played', false);
-    showToast('Queue cleared', 'info');
+  const isQueueActive = document.getElementById('tab-queue')?.classList.contains('active');
+
+  if (isQueueActive) {
+    if (await showConfirm('Clear Queue', 'Clear all upcoming songs?')) {
+      let query = supabase.from('queue').delete().eq('room_id', roomData.id).eq('played', false);
+      if (currentSong) {
+        query = query.neq('id', currentSong.id);
+      }
+      const { error } = await query;
+      if (error) {
+        showToast('Failed to clear queue', 'error');
+      } else {
+        showToast('Queue cleared', 'info');
+      }
+    }
+  } else {
+    if (await showConfirm('Clear History', 'Clear all played songs from history?')) {
+      const { error } = await supabase.from('queue').delete().eq('room_id', roomData.id).eq('played', true);
+      if (error) {
+        showToast('Failed to clear history', 'error');
+      } else {
+        showToast('History cleared', 'info');
+        await refreshPlayedCount();
+        await refreshHistory();
+      }
+    }
   }
 });
 
@@ -883,6 +906,12 @@ document.getElementById('tab-queue')?.addEventListener('click', () => {
   document.getElementById('tab-history').classList.remove('active');
   document.getElementById('queue-list').classList.remove('hidden');
   document.getElementById('history-list').classList.add('hidden');
+  
+  const clearBtn = document.getElementById('btn-clear-queue');
+  if (clearBtn) {
+    clearBtn.title = 'Clear Queue';
+    clearBtn.setAttribute('aria-label', 'Clear Queue');
+  }
 });
 
 document.getElementById('tab-history')?.addEventListener('click', async () => {
@@ -890,6 +919,12 @@ document.getElementById('tab-history')?.addEventListener('click', async () => {
   document.getElementById('tab-queue').classList.remove('active');
   document.getElementById('queue-list').classList.add('hidden');
   document.getElementById('history-list').classList.remove('hidden');
+  
+  const clearBtn = document.getElementById('btn-clear-queue');
+  if (clearBtn) {
+    clearBtn.title = 'Clear History';
+    clearBtn.setAttribute('aria-label', 'Clear History');
+  }
   await refreshHistory();
 });
 
