@@ -912,6 +912,7 @@ document.getElementById('tab-queue')?.addEventListener('click', () => {
     clearBtn.title = 'Clear Queue';
     clearBtn.setAttribute('aria-label', 'Clear Queue');
   }
+  document.getElementById('btn-reload-queue')?.classList.add('hidden');
 });
 
 document.getElementById('tab-history')?.addEventListener('click', async () => {
@@ -925,7 +926,65 @@ document.getElementById('tab-history')?.addEventListener('click', async () => {
     clearBtn.title = 'Clear History';
     clearBtn.setAttribute('aria-label', 'Clear History');
   }
+  document.getElementById('btn-reload-queue')?.classList.remove('hidden');
   await refreshHistory();
+});
+
+document.getElementById('btn-reload-queue')?.addEventListener('click', async () => {
+  try {
+    const { data: historySongs, error: countError } = await supabase
+      .from('queue')
+      .select('id')
+      .eq('room_id', roomData.id)
+      .eq('played', true);
+
+    if (countError) throw countError;
+
+    if (!historySongs || historySongs.length === 0) {
+      showToast('No history to reload', 'info');
+      return;
+    }
+
+    const selection = await showReloadOptions();
+    if (!selection) return;
+
+    const historyIds = historySongs.map(s => s.id);
+
+    // Remove any skip votes for these tracks
+    await supabase.from('skip_votes').delete().in('queue_item_id', historyIds);
+
+    if (selection === 'reset') {
+      // Remove all votes cast for these tracks so voting is clean
+      await supabase.from('votes_cast').delete().in('queue_id', historyIds);
+
+      const { error } = await supabase
+        .from('queue')
+        .update({ played: false, upvotes: 1, downvotes: 0 })
+        .in('id', historyIds);
+
+      if (error) throw error;
+      showToast('Restored history chronologically (FIFO)', 'success');
+    } else if (selection === 'keep') {
+      const { error } = await supabase
+        .from('queue')
+        .update({ played: false })
+        .in('id', historyIds);
+
+      if (error) throw error;
+      showToast('Restored history keeping original votes', 'success');
+    }
+
+    await refreshPlayedCount();
+    await refreshQueue();
+    await refreshHistory();
+
+    if (!currentSong) {
+      await playNextSong();
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Failed to reload history', 'error');
+  }
 });
 
 
@@ -1033,6 +1092,29 @@ function showConfirm(title, msg) {
     };
     document.getElementById('modal-confirm').onclick = () => cleanup(true);
     document.getElementById('modal-cancel').onclick = () => cleanup(false);
+  });
+}
+
+function showReloadOptions() {
+  return new Promise(resolve => {
+    const modal = document.getElementById('reload-modal');
+    if (!modal) {
+      resolve(null);
+      return;
+    }
+    modal.classList.add('visible');
+    
+    const cleanup = (val) => {
+      modal.classList.remove('visible');
+      document.getElementById('btn-reload-reset').onclick = null;
+      document.getElementById('btn-reload-keep').onclick = null;
+      document.getElementById('btn-reload-cancel').onclick = null;
+      resolve(val);
+    };
+
+    document.getElementById('btn-reload-reset').onclick = () => cleanup('reset');
+    document.getElementById('btn-reload-keep').onclick = () => cleanup('keep');
+    document.getElementById('btn-reload-cancel').onclick = () => cleanup(null);
   });
 }
 
