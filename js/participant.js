@@ -194,7 +194,7 @@ function setupListenTogetherParticipant() {
   
   // Set initial display of offset
   if (offsetValueDisplay) {
-    offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(1) + 's';
+    offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(2) + 's';
   }
 
   // Resync button expands menu and triggers immediate sync
@@ -207,19 +207,19 @@ function setupListenTogetherParticipant() {
 
   // Manual Offset adjustments
   btnOffsetMinus?.addEventListener('click', () => {
-    playbackOffset -= 0.5;
+    playbackOffset -= 0.25;
     localStorage.setItem('votify_playback_offset', playbackOffset);
     if (offsetValueDisplay) {
-      offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(1) + 's';
+      offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(2) + 's';
     }
     highlightResyncButton();
   });
 
   btnOffsetPlus?.addEventListener('click', () => {
-    playbackOffset += 0.5;
+    playbackOffset += 0.25;
     localStorage.setItem('votify_playback_offset', playbackOffset);
     if (offsetValueDisplay) {
-      offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(1) + 's';
+      offsetValueDisplay.textContent = (playbackOffset >= 0 ? '+' : '') + playbackOffset.toFixed(2) + 's';
     }
     highlightResyncButton();
   });
