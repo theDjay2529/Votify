@@ -130,3 +130,65 @@ export async function clearSkipVotes(roomId, queueItemId) {
     .eq('room_id', roomId)
     .eq('queue_item_id', queueItemId);
 }
+
+// ── Sync Local Storage Cache from DB ──────────────────────────
+export async function syncLocalStateFromDB(roomId, participantToken) {
+  if (!participantToken) return;
+  try {
+    // 1. Fetch all votes cast by this participant in the current room
+    const { data: dbVotes, error: votesError } = await supabase
+      .from('votes_cast')
+      .select('queue_id, vote_type, queue!inner(room_id)')
+      .eq('participant_token', participantToken)
+      .eq('queue.room_id', roomId);
+
+    if (!votesError && dbVotes) {
+      const state = {};
+      for (const row of dbVotes) {
+        state[row.queue_id] = row.vote_type;
+      }
+      localStorage.setItem(LOCAL_VOTE_KEY, JSON.stringify(state));
+    }
+
+    // 2. Fetch all skip votes cast by this participant in the current room
+    const { data: dbSkips, error: skipsError } = await supabase
+      .from('skip_votes')
+      .select('queue_item_id')
+      .eq('room_id', roomId)
+      .eq('participant_token', participantToken);
+
+    if (!skipsError && dbSkips) {
+      const skips = dbSkips.map(row => row.queue_item_id);
+      localStorage.setItem(LOCAL_SKIP_KEY, JSON.stringify(skips));
+    }
+  } catch (err) {
+    console.error('Failed to sync local voting states from DB', err);
+  }
+}
+
+// ── Handle Local Reload Cache Cleanups ─────────────────────────
+export function handleReloadLocalCleanups(type, ids) {
+  if (!ids || !ids.length) return;
+  
+  // 1. Always discard skip votes for reloaded items
+  try {
+    const skips = JSON.parse(localStorage.getItem(LOCAL_SKIP_KEY) || '[]');
+    const filteredSkips = skips.filter(id => !ids.includes(id));
+    localStorage.setItem(LOCAL_SKIP_KEY, JSON.stringify(filteredSkips));
+  } catch (err) {
+    console.error('Error clearing local skips', err);
+  }
+
+  // 2. If resetting votes, discard vote states
+  if (type === 'reset') {
+    try {
+      const votes = JSON.parse(localStorage.getItem(LOCAL_VOTE_KEY) || '{}');
+      for (const id of ids) {
+        delete votes[id];
+      }
+      localStorage.setItem(LOCAL_VOTE_KEY, JSON.stringify(votes));
+    } catch (err) {
+      console.error('Error clearing local votes', err);
+    }
+  }
+}

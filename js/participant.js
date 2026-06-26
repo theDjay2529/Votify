@@ -7,7 +7,7 @@
 import { supabase } from './supabase-config.js';
 import { getOrCreateGuestToken, getUser } from './auth.js';
 import { getRoom, upsertParticipant, removeParticipant, isParticipantBanned } from './rooms.js';
-import { castUpvote, castDownvote, removeVote, submitSkipVote, getVoteForItem, getSkipVoteCount } from './voting.js';
+import { castUpvote, castDownvote, removeVote, submitSkipVote, getVoteForItem, getSkipVoteCount, handleReloadLocalCleanups, syncLocalStateFromDB } from './voting.js';
 
 // ── State ──
 let roomCode = null;
@@ -91,6 +91,7 @@ async function init() {
 
   // 6. Show skeleton loader while loading queue
   renderQueueSkeleton();
+  await syncLocalStateFromDB(roomData.id, participantToken);
   await refreshQueue();
 
   // 7. Realtime
@@ -543,6 +544,12 @@ function setupRealtime() {
       if (payload.payload?.participant_token === participantToken) {
         showStatusModal('🚫', 'Kicked', 'You have been removed from this room.');
         setTimeout(() => { window.location.replace('join.html'); }, 3000);
+      }
+    })
+    .on('broadcast', { event: 'reload_sync' }, ({ payload }) => {
+      if (payload && payload.ids) {
+        handleReloadLocalCleanups(payload.type, payload.ids);
+        refreshQueue();
       }
     })
     .on('broadcast', { event: 'queue_update' }, () => {

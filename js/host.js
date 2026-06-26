@@ -982,6 +982,15 @@ document.getElementById('btn-reload-queue')?.addEventListener('click', async () 
       showToast('Restored history keeping original votes', 'success');
     }
 
+    // Broadcast reload event to participants so they clear their local caches
+    if (syncChannel) {
+      syncChannel.send({
+        type: 'broadcast',
+        event: 'reload_sync',
+        payload: { type: selection, ids: historyIds }
+      });
+    }
+
     await refreshPlayedCount();
     await refreshQueue();
     await refreshHistory();
