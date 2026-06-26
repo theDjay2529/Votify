@@ -103,27 +103,27 @@
         <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; text-align: center;">
           Playback Sync Adjustment
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: nowrap;">
           <!-- Decrease Offset / Delay (User is faster than host) -->
-          <div style="flex: 1; min-width: 120px; display: flex; flex-direction: column; align-items: center; gap: 6px;">
-            <span style="font-size: 0.65rem; color: var(--text-muted); text-align: center;">You are faster than host</span>
-            <button id="btn-offset-minus" class="btn-secondary" style="padding: var(--space-sm) var(--space-md); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-md); width: 100%; border: 1px solid var(--border-subtle);">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <span style="font-size: 0.58rem; color: var(--text-muted); text-align: center; line-height: 1.2;">You are faster than host</span>
+            <button id="btn-offset-minus" class="btn-secondary" style="padding: 6px 8px; font-size: 0.78rem; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-md); width: 100%; max-width: 80px; border: 1px solid var(--border-subtle);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><line x1="5" y1="12" x2="19" y2="12"/></svg>
               -0.25s
             </button>
           </div>
 
           <!-- Current Offset Value Display -->
-          <div style="display: flex; flex-direction: column; align-items: center; min-width: 50px;">
+          <div style="display: flex; flex-direction: column; align-items: center; min-width: 60px; flex-shrink: 0;">
             <span style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Offset</span>
-            <span id="offset-value-display" style="font-size: 1.1rem; font-weight: 800; font-family: monospace; color: var(--accent-secondary);">0.00s</span>
+            <span id="offset-value-display" style="font-size: 1.05rem; font-weight: 800; font-family: monospace; color: var(--accent-secondary);">+0.25s</span>
           </div>
 
           <!-- Increase Offset / Advance (Host is faster than user) -->
-          <div style="flex: 1; min-width: 120px; display: flex; flex-direction: column; align-items: center; gap: 6px;">
-            <span style="font-size: 0.65rem; color: var(--text-muted); text-align: center;">Host is faster than you</span>
-            <button id="btn-offset-plus" class="btn-secondary" style="padding: var(--space-sm) var(--space-md); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-md); width: 100%; border: 1px solid var(--border-subtle);">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <span style="font-size: 0.58rem; color: var(--text-muted); text-align: center; line-height: 1.2;">Host is faster than you</span>
+            <button id="btn-offset-plus" class="btn-secondary" style="padding: 6px 8px; font-size: 0.78rem; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-md); width: 100%; max-width: 80px; border: 1px solid var(--border-subtle);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               +0.25s
             </button>
           </div>

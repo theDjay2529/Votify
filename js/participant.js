@@ -25,7 +25,7 @@ let listenPlayer = null;
 let isListenPlayerReady = false;
 let isListeningActive = false;
 let lastSongUpdatedAt = 0;
-let playbackOffset = parseFloat(localStorage.getItem('votify_playback_offset') || '0');
+let playbackOffset = parseFloat(localStorage.getItem('votify_playback_offset') || '0.25');
 let lastPlaybackPayload = null;
 let lastPlaybackPayloadReceivedTime = 0;
 
