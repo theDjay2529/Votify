@@ -132,34 +132,41 @@ export async function clearSkipVotes(roomId, queueItemId) {
 }
 
 // ── Sync Local Storage Cache from DB ──────────────────────────
-export async function syncLocalStateFromDB(roomId, participantToken) {
-  if (!participantToken) return;
+export async function syncLocalStateFromDB(queueIds, participantToken) {
+  if (!participantToken || !queueIds || queueIds.length === 0) return;
   try {
-    // 1. Fetch all votes cast by this participant in the current room
+    // 1. Fetch all votes cast by this participant for the active tracks
     const { data: dbVotes, error: votesError } = await supabase
       .from('votes_cast')
-      .select('queue_id, vote_type, queue!inner(room_id)')
+      .select('queue_id, vote_type')
       .eq('participant_token', participantToken)
-      .eq('queue.room_id', roomId);
+      .in('queue_id', queueIds);
 
     if (!votesError && dbVotes) {
-      const state = {};
-      for (const row of dbVotes) {
-        state[row.queue_id] = row.vote_type;
+      const localState = JSON.parse(localStorage.getItem(LOCAL_VOTE_KEY) || '{}');
+      // Clear current room active IDs first, then populate from DB
+      for (const id of queueIds) {
+        delete localState[id];
       }
-      localStorage.setItem(LOCAL_VOTE_KEY, JSON.stringify(state));
+      for (const row of dbVotes) {
+        localState[row.queue_id] = row.vote_type;
+      }
+      localStorage.setItem(LOCAL_VOTE_KEY, JSON.stringify(localState));
     }
 
-    // 2. Fetch all skip votes cast by this participant in the current room
+    // 2. Fetch all skip votes cast by this participant for the active tracks
     const { data: dbSkips, error: skipsError } = await supabase
       .from('skip_votes')
       .select('queue_item_id')
-      .eq('room_id', roomId)
-      .eq('participant_token', participantToken);
+      .eq('participant_token', participantToken)
+      .in('queue_item_id', queueIds);
 
     if (!skipsError && dbSkips) {
       const skips = dbSkips.map(row => row.queue_item_id);
-      localStorage.setItem(LOCAL_SKIP_KEY, JSON.stringify(skips));
+      const localSkips = JSON.parse(localStorage.getItem(LOCAL_SKIP_KEY) || '[]');
+      const filteredSkips = localSkips.filter(id => !queueIds.includes(id));
+      const newSkips = [...filteredSkips, ...skips];
+      localStorage.setItem(LOCAL_SKIP_KEY, JSON.stringify(newSkips));
     }
   } catch (err) {
     console.error('Failed to sync local voting states from DB', err);

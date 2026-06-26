@@ -91,7 +91,6 @@ async function init() {
 
   // 6. Show skeleton loader while loading queue
   renderQueueSkeleton();
-  await syncLocalStateFromDB(roomData.id, participantToken);
   await refreshQueue();
 
   // 7. Realtime
@@ -341,6 +340,11 @@ async function refreshQueue() {
       if (netB !== netA) return netB - netA;
       return new Date(a.created_at) - new Date(b.created_at);
     });
+    const allActiveIds = queue.map(s => s.id);
+    if (currentSong) {
+      allActiveIds.push(currentSong.id);
+    }
+    await syncLocalStateFromDB(allActiveIds, participantToken);
     renderQueue();
   } catch (err) {
     console.error('[Votify] Queue error:', err);
