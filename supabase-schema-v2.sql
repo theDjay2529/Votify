@@ -38,6 +38,7 @@ DROP FUNCTION IF EXISTS verify_room_pin(TEXT, TEXT) CASCADE;
 DROP FUNCTION IF EXISTS expire_inactive_rooms()   CASCADE;
 DROP FUNCTION IF EXISTS touch_room_activity()     CASCADE;
 DROP FUNCTION IF EXISTS increment_vote(UUID)      CASCADE;
+DROP FUNCTION IF EXISTS reload_history_tracks(UUID, UUID[], BOOLEAN) CASCADE;
 DROP TABLE IF EXISTS room_bans          CASCADE;
 DROP TABLE IF EXISTS room_participants  CASCADE;
 DROP TABLE IF EXISTS skip_votes         CASCADE;
@@ -341,6 +342,41 @@ BEGIN
     UPDATE queue SET downvotes = downvotes - 1 WHERE id = p_queue_id;
   END IF;
   -- existing = NULL: no vote to remove — idempotent no-op
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- ============================================================
+-- RPC: reload_history_tracks
+-- SECURITY DEFINER function to reload all songs from history in a single transaction.
+-- Bypasses RLS limits to safely delete votes/skips and update queue status.
+-- ============================================================
+CREATE OR REPLACE FUNCTION reload_history_tracks(
+  p_room_id UUID,
+  p_track_ids UUID[],
+  p_reset_votes BOOLEAN
+)
+RETURNS VOID AS $$
+BEGIN
+  -- 1. Clear skip votes for these tracks
+  DELETE FROM public.skip_votes
+  WHERE room_id = p_room_id AND queue_item_id = ANY(p_track_ids);
+
+  IF p_reset_votes THEN
+    -- 2. Clear votes cast for these tracks so participants can vote fresh
+    DELETE FROM public.votes_cast
+    WHERE queue_id = ANY(p_track_ids);
+
+    -- 3. Reset queue played state and votes (upvotes=1, downvotes=0)
+    UPDATE public.queue
+    SET played = false, upvotes = 1, downvotes = 0
+    WHERE room_id = p_room_id AND id = ANY(p_track_ids);
+  ELSE
+    -- 3. Reset queue played state but keep existing votes
+    UPDATE public.queue
+    SET played = false
+    WHERE room_id = p_room_id AND id = ANY(p_track_ids);
+  END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

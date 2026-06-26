@@ -958,27 +958,18 @@ document.getElementById('btn-reload-queue')?.addEventListener('click', async () 
 
     const historyIds = historySongs.map(s => s.id);
 
-    // Remove any skip votes for these tracks
-    await supabase.from('skip_votes').delete().in('queue_item_id', historyIds);
+    // Call the database RPC to clear skip_votes, votes_cast, and update queue state atomically
+    const { error } = await supabase.rpc('reload_history_tracks', {
+      p_room_id: roomData.id,
+      p_track_ids: historyIds,
+      p_reset_votes: (selection === 'reset')
+    });
+
+    if (error) throw error;
 
     if (selection === 'reset') {
-      // Remove all votes cast for these tracks so voting is clean
-      await supabase.from('votes_cast').delete().in('queue_id', historyIds);
-
-      const { error } = await supabase
-        .from('queue')
-        .update({ played: false, upvotes: 1, downvotes: 0 })
-        .in('id', historyIds);
-
-      if (error) throw error;
       showToast('Restored history chronologically (FIFO)', 'success');
-    } else if (selection === 'keep') {
-      const { error } = await supabase
-        .from('queue')
-        .update({ played: false })
-        .in('id', historyIds);
-
-      if (error) throw error;
+    } else {
       showToast('Restored history keeping original votes', 'success');
     }
 
