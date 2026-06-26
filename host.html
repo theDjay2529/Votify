@@ -164,7 +164,7 @@
 
   <!-- Reload Queue Modal -->
   <div id="reload-modal" class="modal-overlay">
-    <div class="modal-content glass-card" style="max-width: 480px; text-align: left;">
+    <div class="modal-content glass-card" style="width: 90%; max-width: 440px; text-align: left;">
       <h3 class="modal-title" style="text-align: center; margin-bottom: 8px;">Re-add Played Songs</h3>
       <p class="modal-message" style="text-align: center; margin-bottom: 24px;">Choose how songs from history should be restored to the active queue:</p>
       
@@ -172,20 +172,20 @@
         <button id="btn-reload-reset" class="glass-card-hover" style="display: block; width: 100%; padding: 16px; border: 1px solid var(--border-subtle); text-align: left; background: none; border-radius: var(--radius-md); cursor: pointer; transition: all var(--duration-fast);">
           <div style="font-weight: 700; color: var(--text-primary); font-size: 1rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16" style="color: var(--accent-primary);"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            Reset Vote Count (FIFO)
+            Reset Vote Count
           </div>
           <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.4;">
-            Restores all songs with exactly 1 upvote each. Songs will play in the chronological order they were originally added to the room.
+            Add the songs back in the same order they played, with fresh vote counts.
           </div>
         </button>
 
         <button id="btn-reload-keep" class="glass-card-hover" style="display: block; width: 100%; padding: 16px; border: 1px solid var(--border-subtle); text-align: left; background: none; border-radius: var(--radius-md); cursor: pointer; transition: all var(--duration-fast);">
           <div style="font-weight: 700; color: var(--text-primary); font-size: 1rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16" style="color: var(--accent-secondary);"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-            Keep Vote Count (Highest Votes First)
+            Keep Vote Count
           </div>
           <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.4;">
-            Restores songs keeping their previous vote counts. Songs with higher votes will automatically rise to the top of the queue.
+            Add the songs back in ranking of the highest votes.
           </div>
         </button>
       </div>
